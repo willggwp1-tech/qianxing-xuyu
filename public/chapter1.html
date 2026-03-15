@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>牽星絮語 — 第一章</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; }
+  </style>
+</head>
+<body>
+<!-- Phaser 3 from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script>
+/* ============================================================
+   牽星絮語 — 第一章 (Chapter 1) — Phaser 3 RPG dialogue scene
+   ============================================================ */
+
+// ---- Dialogue script ----
+const DIALOGUE = [
+  // === Scene 1: Awakening in the boy's room ===
+  { speaker: '', text: '【我】睜開眼，發現自己正身處一片漆黑，躺在床上。', bg: 'ch1_1' },
+  { speaker: '', text: '【我】起過身來，並往床邊的鏡子走，照了照鏡子，發現我竟成了別人。' },
+  { speaker: '我', text: '啊啊啊！' },
+  { speaker: '精靈', text: '（突然從身邊冒出來）怎麼了怎麼了？' },
+  { speaker: '我', text: '啊啊啊！你又從哪裡冒出來的？還有我為甚麼會變成這個樣子？這裏又是哪裡？' },
+  { speaker: '精靈', text: '你也知道我的樣貌比較…與眾不同，所以很容易招惹別人的目光，不利於我們行動，所以有時候我會把自己藏起來。' },
+
+  // === The boy's soul appears ===
+  { speaker: '', text: '此時，一把有別於精靈的聲音出現在我身後。' },
+  { speaker: '男聲', text: '欸？為甚麼有另一個我？' },
+  { speaker: '', text: '該名男子身體呈現半透明。' },
+  { speaker: '我', text: '咦！（被嚇到）' },
+  { speaker: '', text: '定睛一看，他與現在的我一模一樣。' },
+  { speaker: '', text: '精靈見我們都大惑不解，便打算解釋。' },
+  { speaker: '精靈', text: '咳咳，讓我來說明情況吧。' },
+  { speaker: '精靈', text: '你現在的靈魂正附於這個男孩的身體裡，代替他生活。相應的，這個男孩的靈魂會脫離他的身體。現在我們應該是處於這個男孩的房間裡。' },
+  { speaker: '精靈', text: '而你現在要做的，就是利用成為這個男孩的時間，找出他情緒困擾的誘因，我才有方法可以幫助他。' },
+  { speaker: '我', text: '意思就是我要用他的身份生活？' },
+  { speaker: '精靈', text: '沒錯，只有親身體會才能更準確找出誘因。' },
+  { speaker: '精靈', text: '哦，順帶一提，由於你現在依附在男孩的身體裡，所以他本來的病痛以及情緒你都會感受到。' },
+
+  // === Getting consent from the boy ===
+  { speaker: '', text: '精靈轉身面向那名男孩。' },
+  { speaker: '精靈', text: '你同意我們暫時取替你生活嗎？' },
+  { speaker: '男孩', text: '同意。' },
+  { speaker: '我', text: '說了那麼多，我都不知道你叫什麼名字呢。不然我怎麼代替你生活啊。' },
+  { speaker: '', text: '【我】坐在書桌前的椅子上。' },
+  { speaker: '我', text: '介意告訴我你的名字嗎？' },
+  { speaker: '男孩', text: '我…我叫莊子傑，平常家人都叫我傑仔。' },
+  { speaker: '', text: '你想說什麼？', choices: ['以後請多指教，傑仔', '我一定會幫你解決問題的，傑仔'] },
+  { speaker: '子傑', text: '隨便，只要有人替我學習就好了。' },
+  { speaker: '', text: '你想問什麼？', choices: ['學習？', '什麼意思？'] },
+
+  // === Mother enters ===
+  { speaker: '', text: '話音剛落，原本緊閉着的門被從外打開。' },
+  { speaker: '', text: '見此情形，精靈怕被發現，便消失了。' },
+  { speaker: '媽媽', text: '莊子傑，你不好好學習在這裡自言自語甚麼呢！' },
+  { speaker: '', text: '【我】被嚇到了，本能的往後靠。' },
+  { speaker: '', text: '由於真正的莊子傑處於靈魂狀態，所以那名女性無法看見他。' },
+  { speaker: '子傑', text: '（靠過來我耳邊）這是我的媽媽。' },
+  { speaker: '媽媽', text: '你縮甚麼？你想想，我催促你學習是為了你好啊，你現在這個成績都不夠年級前25名，你將來怎麼讀大學呢…' },
+  { speaker: '媽媽', text: '聽著，我每天上班這麼久，賺的錢都拿來供你讀書了，你就給我認認真真的學，好好回報一下我的付出好不好。' },
+  { speaker: '媽媽', text: '要是你的成績一直沒有提升的話，你就出來工作吧，反正也上不了大學。' },
+  { speaker: '', text: '話畢，媽媽生氣地關上房門，離開了。' },
+  { speaker: '子傑', text: '抱歉，讓你替我承受媽媽的氣。' },
+  { speaker: '', text: '此時，精靈見媽媽離開，便重新出現。' },
+  { speaker: '精靈', text: '沒關係，這本來就是我們該做的。' },
+
+  // === First anxiety attack ===
+  { speaker: '', text: '在聽完媽媽的一番話後，【我】感到了一絲不對勁。' },
+  { speaker: '', text: '【我】頭痛欲裂，並且呼吸開始急促。' },
+  { speaker: '我', text: '啊…我的頭…好痛…' },
+  { speaker: '', text: '精靈見狀，將雙手放於胸前，使她雙手發光。' },
+  { speaker: '', text: '她用她雙手的光芒照射到【我】身上。' },
+  { speaker: '精靈', text: '這樣應該能緩解一些症狀。' },
+  { speaker: '', text: '確實，不難受了。' },
+  { speaker: '我', text: '謝謝你，舒服多了。' },
+  { speaker: '我', text: '但是為甚麼…' },
+  { speaker: '精靈', text: '因為媽媽就是導致子傑產生焦慮的其中一個原因。' },
+  { speaker: '精靈', text: '每次媽媽對他施壓的時候你就會開始焦慮，我說得沒錯吧，子傑。' },
+  { speaker: '子傑', text: '嗯，沒錯她罵我我就有這樣的反應…' },
+  { speaker: '子傑', text: '可是，為甚麼我現在沒有反應呢？' },
+  { speaker: '精靈', text: '可能是因為你現在處於靈魂狀態，不用承擔學業壓力，所謂無事一身輕就是這樣吧。總之，這段時間你就暫時放下那些壓力吧。' },
+  { speaker: '', text: '你想說什麼？', choices: ['接下來交給我們', '我們會幫你解決問題的'] },
+
+  // === Night falls, go to school ===
+  { speaker: '', text: '夜色落幕。' },
+  { speaker: '精靈', text: '哎呀，天已經這麼晚了，我們還是盡早休息吧。' },
+  { speaker: '子傑', text: '對，你早點睡吧，明天還要上學呢，我不想看到因為遲到被學校記缺點。' },
+  { speaker: '', text: '被兩位催着上床睡覺了。', blackout: true },
+  { speaker: '', text: '天一亮便起床上學了。', blackout: false, bg: 'ch1_2' },
+  { speaker: '', text: '在莊子傑的帶領下來到了學校。' },
+  { speaker: '', text: '坐到了莊子傑的座位上，他的座位在教室角落。' },
+  { speaker: '', text: '瞥見子傑座位的抽屜裡塞滿了書本和筆記。' },
+  { speaker: '我', text: '子傑，你平時上學都把這麼多東西放抽屜裡嗎？' },
+  { speaker: '子傑', text: '對，這樣不但可以減輕書包重量，還可以在上課的時候隨時拿出需要的課本，很方便的。' },
+  { speaker: '子傑', text: '而且啊，平時在學校我都會趁著課間完成作業和複習，所以不用擔心我沒有認真學習的哦，我有好好鞏固自己的知識。' },
+  { speaker: '子傑', text: '只是不知道為什麼每次考試都發揮失常，每次都考不好，呵呵…' },
+  { speaker: '', text: '學生們陸陸續續回到教室。' },
+  { speaker: '精靈', text: '你們快別說話了，學生們陸陸續續進來了，別人是看不見這個靈魂體子傑的，要是他們看到你自言自語的話，會把你當怪人的吧。' },
+
+  // === Falling asleep in class ===
+  { speaker: '', text: '開始上課了。只是…不知道為甚麼，眼皮越來越重。' },
+  { speaker: '', text: '是昨天沒睡好嗎？不對，昨天很早就睡了。到底是為甚麼…' },
+  { speaker: '', text: '終究還是敵不過睏意，合上了雙眼…', blackout: true },
+
+  // === Dream encounter with 摩耳甫斯 ===
+  { speaker: '', text: '一睜眼便是黑漆漆的教室，四周空無一人。', blackout: false, bg: 'ch1_3' },
+  { speaker: '', text: '突然，黑板前的地上開啟了一道暗紫色的傳送門，裡面飄出了一隻藍色的精靈。' },
+  { speaker: '', text: '祂與摩耳菲婭長相相似。' },
+  { speaker: '藍精靈', text: '你不要再插手了。' },
+  { speaker: '', text: '你的回應是？', choices: ['插手甚麼？', '你是指…'] },
+  { speaker: '藍精靈', text: '那個小男孩的事。' },
+  { speaker: '我', text: '你是指子傑？' },
+  { speaker: '藍精靈', text: '對，我會保護好他的，他的事還輪不到你管。' },
+  { speaker: '我', text: '我偏要管！' },
+  { speaker: '藍精靈', text: '那就給你點顏色瞧瞧吧。' },
+  { speaker: '', text: '說完，那位藍色的精靈又開啟了一道傳送門，把子傑從傳送門裡拉出來。' },
+  { speaker: '我', text: '你想對子傑做什麼？' },
+  { speaker: '', text: '藍精靈不語，只見祂手上冒出暗紫色的光芒，並摸向了子傑，在他耳邊低語。' },
+  { speaker: '藍精靈', text: '沒甚麼，只是想看看誰更能保護好這個男孩。' },
+  { speaker: '摩耳甫斯', text: '對了，還沒自我介紹呢，我叫摩耳甫斯，很高興認識你，期待我們未來還能交手。' },
+  { speaker: '', text: '四周開始變得漆黑。', blackout: true },
+
+  // === Waking up — scolded by teacher ===
+  { speaker: '', text: '只聽到一聲訓罵：「莊子傑！」', blackout: false, bg: 'ch1_2' },
+  { speaker: '', text: '我從那場【夢】中醒來，才反應過來還在課堂時間。' },
+  { speaker: '老師', text: '你能不能認真上課，本來考試成績已經不好了，現在還要上課睡覺？' },
+  { speaker: '', text: '老師開始了對子傑的訓導。' },
+  { speaker: '', text: '周遭傳來了同學們的嘲笑，我感到不安與沒面子。' },
+  { speaker: '老師', text: '你看看你自己的成績跟其他同學的比起來怎麼樣？每一科都不合格，我都不好說你了…' },
+  { speaker: '', text: '經歷了幾分鐘的教導後，下課鈴響了。' },
+  { speaker: '', text: '老師也不想耽誤大家的課餘時間，便宣布放學。' },
+  { speaker: '', text: '原來已經睡到放學了。' },
+  { speaker: '', text: '我亦因老師的訓罵而勾起了部分焦慮的症狀。' },
+  { speaker: '', text: '拖着狀況不對的身軀走進了一格廁所。' },
+  { speaker: '', text: '摩耳菲婭自覺地幫我治癒。' },
+  { speaker: '摩耳菲婭', text: '你怎麼突然睡著了，叫也叫不醒。' },
+  { speaker: '', text: '我邊忍受着痛苦，邊把剛才發生的事轉告給她。' },
+  { speaker: '', text: '摩耳菲婭在得知事情後，作出猜測。' },
+  { speaker: '摩耳菲婭', text: '摩耳甫斯…他是我的同事，但是在很久以前就銷聲匿跡了。沒人知道他去哪裡了。' },
+  { speaker: '摩耳菲婭', text: '從前有一次，他負責維護星核，可是突然間就不見了，誰都不知道究竟發生了甚麼。' },
+  { speaker: '', text: '你想問什麼？', choices: ['那他是黑化了？', '所以他現在是我們的敵人？'] },
+  { speaker: '摩耳菲婭', text: '應該是的，他在阻止我們幫助子傑。' },
+  { speaker: '我', text: '說起來子傑去哪了？' },
+  { speaker: '摩耳菲婭', text: '我也不知道。' },
+  { speaker: '', text: '我的情況好點了，於是向摩耳菲婭提出說四處去找他。' },
+
+  // === Search for evidence — School ===
+  { speaker: '', text: '經過一番尋找，我們在學校一處杳無人煙的後樓梯找到身冒黑煙的子傑。', bg: 'ch1_2' },
+  { speaker: '我', text: '子傑你還好嗎？' },
+  { speaker: '', text: '子傑語氣低沈，這個人看上去沒有神氣。' },
+  { speaker: '子傑', text: '我...我是一個廢物，學習差，考試考不好，不但被母親責罵，還被同學取笑。我怎麼才能變好啊。' },
+  { speaker: '我', text: '你一直都很好啊。' },
+  { speaker: '子傑', text: '我不行的，我成績不好，未來也沒有出路。我不想面對這一切。' },
+  { speaker: '', text: '正當我打算觸碰子傑並安慰他時，摩耳菲婭一把將我拉住。' },
+  { speaker: '摩耳菲婭', text: '別碰他！他現在被負面能量侵蝕了，如果你碰到他，你也會被侵蝕的。' },
+  { speaker: '', text: '你想問什麼？', choices: ['我們該怎麼做？', '我要怎麼幫他？'] },
+  { speaker: '摩耳菲婭', text: '他現在的想法十分悲觀，如果我們找得到一些證據，應該能夠幫助他清醒過來。' },
+  { speaker: '我', text: '那我們快去找吧。' },
+
+  // === Evidence 1: Math notebook ===
+  { speaker: '', text: '首先，我們來到莊子傑的課桌，開始尋找反駁他的證據。' },
+  { speaker: '', text: '【證據1】寫滿公式的數學筆記本 — 子傑的筆記本，上面記載了許多數學公式以及技巧，足以體現他對於學習的熱誠。', evidence: true },
+  { speaker: '我', text: '原來子傑這麼努力學習的，還記了這麼多筆記。' },
+
+  // === Evidence 2: Drawer full of textbooks ===
+  { speaker: '', text: '【證據2】塞滿課本的抽屜 — 被子傑精心安排過的課本排列方式，體現其對於上課與學習的熱情。', evidence: true },
+  { speaker: '', text: '課本排列整齊，似乎被子傑精心安排過，一點也不雜亂，看來子傑對於學習還是很有熱情的。' },
+
+  // === Evidence 3: Study plan ===
+  { speaker: '', text: '【證據3】學習進度表 — 體現子傑對於學習的規劃。', evidence: true },
+  { speaker: '我', text: '原來子傑一直都在注意自己的學習進度，真是太有毅力了。' },
+
+  // === Go home for more evidence ===
+  { speaker: '摩耳菲婭', text: '除了來自學校的壓力外，還有來自家中的壓力，我想我們還可以回一趟家看看有沒有能應對的東西。', bg: 'ch1_1' },
+  { speaker: '我', text: '那麼我們就回去一趟吧。' },
+  { speaker: '', text: '我們在學校門口遇到一位女孩。' },
+  { speaker: '女同學', text: '子傑，這麼巧啊。' },
+  { speaker: '', text: '你的回應是？', choices: ['你是？', '欸？'] },
+  { speaker: '女同學', text: '我是你班上的同學啊，你不會認不出我來吧。還是說，是因為你平時太專注於學習，所以沒有留意到我呢？' },
+  { speaker: '', text: '你想說什麼？', choices: ['我很愛學習嗎？', '真的嗎？'] },
+  { speaker: '女同學', text: '對啊，你平時就連課間休息的時間也用來做作業和複習，這些我都看在眼裡哦。' },
+  { speaker: '女同學', text: '所以，即使考試成績不如理想，也不要氣餒，努力過了，無愧於心就好。今天老師的話你也別太放在心上哦。' },
+  { speaker: '女同學', text: '或許有可能是因為學習方法的關係？' },
+  { speaker: '女同學', text: '我該回家了，再見。' },
+  { speaker: '我', text: '再見。' },
+  { speaker: '', text: '【證據4】女同學的話 — 自己每次課間休息都會學習，也提及了子傑可能不適合目前這個學習方法。', evidence: true },
+
+  // === Home — confronting mother ===
+  { speaker: '', text: '回到家中。', bg: 'ch1_1' },
+  { speaker: '媽媽', text: '子傑回家了？' },
+  { speaker: '子傑', text: '嗯。' },
+  { speaker: '', text: '媽媽似乎看出了我，或者說子傑，的樣子不對勁。' },
+  { speaker: '媽媽', text: '怎麼了？好像心情不太好的樣子，發生什麼事了？' },
+  { speaker: '我', text: '沒甚麼。' },
+  { speaker: '媽媽', text: '你有事怎麼能不跟媽媽說，媽媽會保護你的啊。' },
+  { speaker: '', text: '我一句話脫口而出。' },
+  { speaker: '我', text: '那你怎麼還一直逼迫我考試考高分，還那麼著緊我的未來，壓力很大的。' },
+  { speaker: '', text: '當我意識到自己說了什麼的時候，已經覆水難收了。' },
+  { speaker: '媽媽', text: '欸？你怎麼這樣想？媽媽在意你是肯定的啊，我可是十月懷胎才生下你的，說不在意你是不可能的。媽媽只是希望你能夠有能力過好自己的生活，條件好點，不用像我一樣。' },
+  { speaker: '媽媽', text: '如果不是你說，我也不知道自己無意中給了這麼多壓力你。所以謝謝你和我說這些。' },
+  { speaker: '媽媽', text: '這個模型就送給你吧，就當作是給你的獎勵。' },
+  { speaker: '', text: '【證據5】媽媽贈送的模型 — 用禮物盒裝起來的玩具模型，是子傑喜歡的暴龍，小巧而精緻。', evidence: true },
+  { speaker: '', text: '媽媽給了一個擁抱。' },
+  { speaker: '媽媽', text: '我要去做兼職了，你晚飯自己解決。' },
+  { speaker: '', text: '說罷，媽媽離開家上班去了。' },
+  { speaker: '', text: '我注意到客廳桌上那本屬於媽媽的帳本，看到她的存款增加了好幾次，但是數目均不多。' },
+  { speaker: '', text: '看到帳本數目增加了幾次後，最後有幾筆大支出把一大半存款掏空了。' },
+  { speaker: '', text: '這時我才理解到媽媽剛才的話是什麼意思。' },
+  { speaker: '', text: '「媽媽只是希望你能夠有能力過好自己的生活，條件好點，不用像我一樣。」' },
+  { speaker: '', text: '【證據6】媽媽的帳本 — 存款增加了好幾次但數目不多，最後幾筆大支出（水費、電費、煤氣、學費等）把一大半存款掏空了。', evidence: true },
+
+  // === Return to save the boy ===
+  { speaker: '', text: '得知這一切之後的我心情很沈重，既知道子傑努力學習但表現不佳且背負著重大壓力，又知道媽媽在背後對子傑的感情以及負擔。' },
+  { speaker: '摩耳菲婭', text: '這些應該足夠讓迷途的子傑清醒過來了，我們回去找他吧。' },
+  { speaker: '我', text: '好，是時候讓他們心意相通了。' },
+
+  // === Confronting the fallen boy ===
+  { speaker: '', text: '回到學校且找到子傑。', bg: 'ch1_2' },
+  { speaker: '子傑', text: '哦？是你啊...' },
+  { speaker: '子傑', text: '你回來是想把身體還給我嗎？我可不會再回到那個地獄了。' },
+
+  // === Chapter end ===
+  { speaker: '', text: '— 第一章 · 未完待續 —', end: true }
+];
+
+// ---- Progress helpers ----
+const CURRENT_PAGE = 'chapter1.html';
+
+function getUsername() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user ? user.username : null;
+  } catch { return null; }
+}
+
+function saveProgress(dialogueIndex) {
+  const username = getUsername();
+  if (!username) return;
+  fetch('/api/progress/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, currentPage: CURRENT_PAGE, dialogueIndex })
+  }).catch(() => {});
+}
+
+async function loadProgress() {
+  const username = getUsername();
+  if (!username) return null;
+  try {
+    const res = await fetch('/api/progress/load?username=' + encodeURIComponent(username));
+    const data = await res.json();
+    if (data.found && data.currentPage === CURRENT_PAGE) return data.dialogueIndex;
+  } catch {}
+  return null;
+}
+
+// ---- Phaser scene ----
+class Chapter1Scene extends Phaser.Scene {
+  constructor() {
+    super('Chapter1Scene');
+    this.dialogueIndex = 0;
+    this.isTyping = false;
+    this.typeTimer = null;
+    this.choiceMode = false;
+  }
+
+  preload() {
+    // Chapter 1 illustrations
+    this.load.image('ch1_1', 'assets/illustration_draft/chapter1/chapter1.1.png');
+    this.load.image('ch1_2', 'assets/illustration_draft/chapter1/chapter1.2.png');
+    this.load.image('ch1_3', 'assets/illustration_draft/chapter1/chapter1.3.png');
+    this.load.image('dialogBox', 'assets/UI/dialog_box.PNG');
+  }
+
+  create() {
+    const { width, height } = this.scale;
+
+    // --- Background ---
+    this.bg = this.add.image(width / 2, height / 2, 'ch1_1');
+    this.fitBackground(this.bg);
+
+    // --- Blackout overlay ---
+    this.blackOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000).setAlpha(0).setDepth(1);
+
+    // --- Dialogue box (bottom of screen) ---
+    const boxH = 306;
+    const boxY = height - boxH;
+    this.dialogueBox = this.add.image(width / 2, boxY + boxH / 2, 'dialogBox').setDepth(10);
+    this.dialogueBox.setDisplaySize(width, boxH);
+
+    // Speaker name
+    this.speakerText = this.add.text(72, boxY + 25, '', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '36px',
+      color: '#a0c4ff',
+      fontStyle: 'bold'
+    }).setDepth(11);
+
+    // Dialogue text
+    this.dialogueText = this.add.text(72, boxY + 80, '', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '32px',
+      color: '#e0e0e0',
+      wordWrap: { width: width - 144 },
+      lineSpacing: 10
+    }).setDepth(11);
+
+    // Continue hint
+    this.continueHint = this.add.text(width - 72, height - 32, '▶ 點擊繼續', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '25px',
+      color: '#6688aa'
+    }).setOrigin(1, 1).setDepth(11);
+
+    // Evidence flash overlay (gold tint for evidence lines)
+    this.evidenceFlash = this.add.rectangle(width / 2, boxY + boxH / 2, width, boxH, 0xffcc00, 0).setDepth(9);
+
+    this.choiceButtons = [];
+
+    // --- Input ---
+    this.input.on('pointerdown', () => this.advance());
+    this.input.keyboard.on('keydown-SPACE', () => this.advance());
+
+    // --- Load saved progress or start from beginning ---
+    loadProgress().then(savedIndex => {
+      if (savedIndex != null && savedIndex > 0 && savedIndex < DIALOGUE.length) {
+        for (let i = 0; i < savedIndex; i++) {
+          const e = DIALOGUE[i];
+          if (e.bg) { this.bg.setTexture(e.bg); this.fitBackground(this.bg); }
+          if (e.blackout === true) this.blackOverlay.setAlpha(1);
+          else if (e.blackout === false) this.blackOverlay.setAlpha(0);
+        }
+        this.dialogueIndex = savedIndex;
+      }
+      this.showLine();
+    });
+  }
+
+  fitBackground(img) {
+    const { width, height } = this.scale;
+    const scale = Math.max(width / img.width, height / img.height);
+    img.setScale(scale);
+  }
+
+  /* Display current dialogue line with typewriter effect */
+  showLine() {
+    const entry = DIALOGUE[this.dialogueIndex];
+    if (!entry) return;
+
+    // Auto-save progress
+    saveProgress(this.dialogueIndex);
+
+    // Background change
+    if (entry.bg) {
+      this.bg.setTexture(entry.bg);
+      this.fitBackground(this.bg);
+    }
+
+    // Blackout
+    if (entry.blackout === true) {
+      this.blackOverlay.setAlpha(1);
+    } else if (entry.blackout === false) {
+      this.blackOverlay.setAlpha(0);
+    }
+
+    // Evidence highlight flash
+    if (entry.evidence) {
+      this.tweens.add({
+        targets: this.evidenceFlash,
+        alpha: { from: 0.15, to: 0 },
+        duration: 800,
+        ease: 'Sine.easeOut'
+      });
+    }
+
+    // Speaker
+    this.speakerText.setText(entry.speaker ? `【${entry.speaker}】` : '');
+
+    // Typewriter
+    this.dialogueText.setText('');
+    this.continueHint.setVisible(false);
+    this.isTyping = true;
+    let charIndex = 0;
+    const fullText = entry.text;
+
+    if (this.typeTimer) this.typeTimer.destroy();
+    this.typeTimer = this.time.addEvent({
+      delay: 35,
+      repeat: fullText.length - 1,
+      callback: () => {
+        charIndex++;
+        this.dialogueText.setText(fullText.substring(0, charIndex));
+        if (charIndex >= fullText.length) {
+          this.isTyping = false;
+          this.onLineComplete(entry);
+        }
+      }
+    });
+  }
+
+  onLineComplete(entry) {
+    if (entry.choices) {
+      this.showChoices(entry.choices);
+    } else if (entry.end) {
+      this.continueHint.setText('▶ 前往準備界面').setVisible(true);
+      this.continueHint.setInteractive({ useHandCursor: true });
+      this.continueHint.once('pointerdown', () => {
+        const username = getUsername();
+        if (username) {
+          fetch('/api/progress/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, currentPage: 'prepare.html', dialogueIndex: 0 })
+          }).finally(() => { window.location.href = 'prepare.html'; });
+        } else {
+          window.location.href = 'prepare.html';
+        }
+      });
+    } else {
+      this.continueHint.setText('▶ 點擊繼續').setVisible(true);
+    }
+  }
+
+  showChoices(choices) {
+    this.choiceMode = true;
+    this.continueHint.setVisible(false);
+    const { width, height } = this.scale;
+    const boxY = height - 306;
+    const startY = boxY - 70;
+
+    choices.forEach((text, i) => {
+      const btnX = width / 1.4;
+      const btnY = startY + i * 80;
+      const btnBg = this.add.rectangle(btnX, btnY, 720, 64, 0x1a3a5c, 0.9)
+        .setDepth(12).setInteractive({ useHandCursor: true });
+      const btnText = this.add.text(btnX, btnY, `${i + 1}. ${text}`, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '30px',
+        color: '#a0c4ff'
+      }).setOrigin(0.5).setDepth(13);
+
+      btnBg.on('pointerover', () => btnBg.setFillStyle(0x264d73, 1));
+      btnBg.on('pointerout', () => btnBg.setFillStyle(0x1a3a5c, 0.9));
+      btnBg.on('pointerdown', () => {
+        this.clearChoices();
+        this.choiceMode = false;
+        this.dialogueIndex++;
+        this.showLine();
+      });
+      this.choiceButtons.push(btnBg, btnText);
+    });
+  }
+
+  clearChoices() {
+    this.choiceButtons.forEach(obj => obj.destroy());
+    this.choiceButtons = [];
+  }
+
+  advance() {
+    if (this.choiceMode) return;
+
+    if (this.isTyping) {
+      if (this.typeTimer) this.typeTimer.destroy();
+      const entry = DIALOGUE[this.dialogueIndex];
+      this.dialogueText.setText(entry.text);
+      this.isTyping = false;
+      this.onLineComplete(entry);
+      return;
+    }
+
+    const entry = DIALOGUE[this.dialogueIndex];
+    if (entry && entry.end) return;
+
+    this.dialogueIndex++;
+    if (this.dialogueIndex < DIALOGUE.length) {
+      this.showLine();
+    }
+  }
+}
+
+// ---- Phaser config ----
+const config = {
+  type: Phaser.AUTO,
+  width: 1920,
+  height: 1080,
+  parent: document.body,
+  backgroundColor: '#000000',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  scene: [Chapter1Scene]
+};
+
+const game = new Phaser.Game(config);
+</script>
+</body>
+</html>

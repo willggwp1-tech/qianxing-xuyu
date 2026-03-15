@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>牽星絮語 — 序章</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; }
+  </style>
+</head>
+<body>
+<!-- Phaser 3 from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script>
+/* ============================================================
+   牽星絮語 — 序章 (Prologue) — Phaser 3 RPG dialogue scene
+   ============================================================ */
+
+// ---- Dialogue script ----
+// Each entry: { speaker, text, bg (optional background change), choices (optional) }
+const DIALOGUE = [
+  // --- Opening: the blue spirit ---
+  { speaker: '', text: '在一個無人知曉的地方，一隻藍黑色的精靈在鬼鬼祟祟的做些甚麼。' },
+  { speaker: '', text: '原來，他正在把一些星星的光芒退去。' },
+  { speaker: '', text: '只見他雙手放在一顆星核上，星核隨之暗淡，直至失去光芒，並且破碎。' },
+  { speaker: '藍精靈', text: '不夠，還不夠，再多點…' },
+  { speaker: '', text: '（畫面經過一陣的黑屏）', blackout: true },
+
+  // --- Awakening ---
+  { speaker: '？？？', text: '「醒醒啦，醒醒。」一道溫柔的聲音從耳邊響起。', blackout: false, bg: 'prologue2' },
+  { speaker: '', text: '【我】緩慢地睜開眼，映入眼簾的是一隻粉色精靈，她身旁漂浮着許多類似星星的物體，它們忽明忽暗。' },
+  { speaker: '', text: '你想說什麼？', choices: ['這裡是…？', '你是誰？'] },
+
+  // --- Exposition ---
+  { speaker: '精靈', text: '我叫XX，是一隻負責守護星核的精靈。這裡是星憶空間，是存放着不同星核的地方。' },
+  { speaker: '我', text: '甚麼是星核？' },
+  { speaker: '精靈', text: '每一個星核都代表着一個人的情緒，當星核完整並發亮時，意味著他們情緒和心靈上健康。' },
+
+  // --- Show prologue1 illustration ---
+  { speaker: '精靈', text: '可是它們被破壞了。', bg: 'prologue1' },
+  { speaker: '', text: '你想問什麼？', choices: ['誰做的？', '為甚麼？'] },
+
+  { speaker: '精靈', text: '是藍精靈，他是導致星核破碎的源頭，他會一直把負面能量散發給人們，使他們情緒不穩，甚至使他們患上情緒病。', bg: 'prologue2' },
+  { speaker: '精靈', text: '恐懼，焦慮，抑鬱，躁狂等等都可能會在人們身上出現，並且影響他們的日常生活。' },
+  { speaker: '精靈', text: '雖然不明白藍精靈這樣做的原因，但為了阻止人們陷入情緒困擾，我必須阻止他。' },
+  { speaker: '精靈', text: '不久之前，藍精靈大規模的散發負面能量，導致大量星核破碎。我無法抵抗他的力量。所以我需要一個幫手，跟我一起對抗他。' },
+  { speaker: '', text: '你想說什麼？', choices: ['為甚麼選擇我？'] },
+
+  { speaker: '精靈', text: '因為我感受到你體內蘊含着龐大的樂觀能量，所以我喚醒了你，我相信你可以排除萬難，消除藍精靈散發的負面能量。' },
+  { speaker: '精靈', text: '怎麼樣？我知道這本於你無關，你自然可以選擇協助與否。我不會強迫你的。' },
+  { speaker: '', text: '你的選擇是？', choices: ['加我一個！', '我幫你！'] },
+
+  // --- Closing ---
+  { speaker: '精靈', text: '太好了，我謹代表所有守護星核的精靈感謝你。' },
+  { speaker: '', text: '精靈往前走了幾步。' },
+  { speaker: '精靈', text: '你應該沒有試過怎麼拯救別人吧。那事不宜遲，我一邊教你，一邊實行拯救之道吧。' },
+  { speaker: '', text: '精靈帶著【我】飄到了一顆被負面能量侵蝕的星核前。' },
+  { speaker: '精靈', text: '這是目前被侵蝕得比較輕的星核。我們先拿他試試水吧。' },
+  { speaker: '', text: '說罷，精靈牽起【我】的手，一同接觸了那顆星核……' },
+  { speaker: '', text: '— 序章完 —', end: true }
+];
+
+// ---- Progress helpers ----
+const CURRENT_PAGE = 'prologue.html';
+
+function getUsername() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user ? user.username : null;
+  } catch { return null; }
+}
+
+function saveProgress(dialogueIndex) {
+  const username = getUsername();
+  if (!username) return;
+  fetch('/api/progress/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, currentPage: CURRENT_PAGE, dialogueIndex })
+  }).catch(() => {});
+}
+
+async function loadProgress() {
+  const username = getUsername();
+  if (!username) return null;
+  try {
+    const res = await fetch('/api/progress/load?username=' + encodeURIComponent(username));
+    const data = await res.json();
+    if (data.found && data.currentPage === CURRENT_PAGE) return data.dialogueIndex;
+  } catch {}
+  return null;
+}
+
+// ---- Phaser scene ----
+class PrologueScene extends Phaser.Scene {
+  constructor() {
+    super('PrologueScene');
+    this.dialogueIndex = 0;      // current line index
+    this.isTyping = false;        // typewriter in progress
+    this.typeTimer = null;        // timer event for typewriter
+    this.choiceMode = false;      // waiting for a choice click
+  }
+
+  preload() {
+    // Load background / illustration images
+    this.load.image('prologue1', 'assets/illustration_draft/prologue/prologue1.png');
+    this.load.image('prologue2', 'assets/illustration_draft/prologue/prologue2.png');
+    this.load.image('dialogBox', 'assets/UI/dialog_box.PNG');
+  }
+
+  create() {
+    const { width, height } = this.scale;
+
+    // --- Background image (starts with prologue2 — the starry space) ---
+    this.bg = this.add.image(width / 2, height / 2, 'prologue2');
+    this.fitBackground(this.bg);
+
+    // --- Blackout overlay (used for dramatic pauses) ---
+    this.blackOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000).setAlpha(0).setDepth(1);
+
+    // --- Dialogue box (bottom of screen) ---
+    const boxH = 306;
+    const boxY = height - boxH;
+
+    // Dialog box image
+    this.dialogueBox = this.add.image(width / 2, boxY + boxH / 2, 'dialogBox').setDepth(10);
+    this.dialogueBox.setDisplaySize(width, boxH);
+
+    // Speaker name
+    this.speakerText = this.add.text(72, boxY + 25, '', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '36px',
+      color: '#a0c4ff',
+      fontStyle: 'bold'
+    }).setDepth(11);
+
+    // Dialogue text (with word-wrap)
+    this.dialogueText = this.add.text(72, boxY + 80, '', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '32px',
+      color: '#e0e0e0',
+      wordWrap: { width: width - 144 },
+      lineSpacing: 10
+    }).setDepth(11);
+
+    // "Click to continue" indicator
+    this.continueHint = this.add.text(width - 72, height - 32, '▶ 點擊繼續', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '25px',
+      color: '#6688aa'
+    }).setOrigin(1, 1).setDepth(11);
+
+    // Choice buttons container
+    this.choiceButtons = [];
+
+    // --- Input: click or space to advance ---
+    this.input.on('pointerdown', () => this.advance());
+    this.input.keyboard.on('keydown-SPACE', () => this.advance());
+
+    // --- Load saved progress or start from beginning ---
+    loadProgress().then(savedIndex => {
+      if (savedIndex != null && savedIndex > 0 && savedIndex < DIALOGUE.length) {
+        // Replay background/blackout state up to saved index
+        for (let i = 0; i < savedIndex; i++) {
+          const e = DIALOGUE[i];
+          if (e.bg) { this.bg.setTexture(e.bg); this.fitBackground(this.bg); }
+          if (e.blackout === true) this.blackOverlay.setAlpha(1);
+          else if (e.blackout === false) this.blackOverlay.setAlpha(0);
+        }
+        this.dialogueIndex = savedIndex;
+      }
+      this.showLine();
+    });
+  }
+
+  /* Scale image to cover the game canvas */
+  fitBackground(img) {
+    const { width, height } = this.scale;
+    const scaleX = width / img.width;
+    const scaleY = height / img.height;
+    const scale = Math.max(scaleX, scaleY);
+    img.setScale(scale);
+  }
+
+  /* Display the current dialogue line with typewriter effect */
+  showLine() {
+    const entry = DIALOGUE[this.dialogueIndex];
+    if (!entry) return;
+
+    // Auto-save progress
+    saveProgress(this.dialogueIndex);
+
+    // --- Handle background change ---
+    if (entry.bg) {
+      this.bg.setTexture(entry.bg);
+      this.fitBackground(this.bg);
+    }
+
+    // --- Handle blackout ---
+    if (entry.blackout === true) {
+      this.blackOverlay.setAlpha(1);
+    } else if (entry.blackout === false) {
+      this.blackOverlay.setAlpha(0);
+    }
+
+    // --- Display speaker name ---
+    this.speakerText.setText(entry.speaker ? `【${entry.speaker}】` : '');
+
+    // --- Typewriter effect for dialogue text ---
+    this.dialogueText.setText('');
+    this.continueHint.setVisible(false);
+    this.isTyping = true;
+
+    let charIndex = 0;
+    const fullText = entry.text;
+
+    if (this.typeTimer) this.typeTimer.destroy();
+    this.typeTimer = this.time.addEvent({
+      delay: 35,  // ms per character
+      repeat: fullText.length - 1,
+      callback: () => {
+        charIndex++;
+        this.dialogueText.setText(fullText.substring(0, charIndex));
+        if (charIndex >= fullText.length) {
+          this.isTyping = false;
+          this.onLineComplete(entry);
+        }
+      }
+    });
+  }
+
+  /* Called when typewriter finishes a line */
+  onLineComplete(entry) {
+    if (entry.choices) {
+      // Show choice buttons instead of continue hint
+      this.showChoices(entry.choices);
+    } else if (entry.end) {
+      // Prologue ended — show navigation link
+      this.continueHint.setText('▶ 前往關卡選擇').setVisible(true);
+      this.continueHint.setInteractive({ useHandCursor: true });
+      this.continueHint.once('pointerdown', () => {
+        saveProgress(0); // reset so next login goes to chapter_select
+        const username = getUsername();
+        if (username) {
+          fetch('/api/progress/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, currentPage: 'chapter_select.html', dialogueIndex: 0 })
+          }).finally(() => { window.location.href = 'chapter_select.html'; });
+        } else {
+          window.location.href = 'chapter_select.html';
+        }
+      });
+    } else {
+      this.continueHint.setText('▶ 點擊繼續').setVisible(true);
+    }
+  }
+
+  /* Show interactive choice buttons */
+  showChoices(choices) {
+    this.choiceMode = true;
+    this.continueHint.setVisible(false);
+
+    const { width, height } = this.scale;
+    const boxY = height - 306;
+    const startY = boxY - 70;
+
+    choices.forEach((text, i) => {
+      const btnX = width / 1.4;
+      const btnY = startY + i * 80;
+
+      // Button background
+      const btnBg = this.add.rectangle(btnX, btnY, 720, 64, 0x1a3a5c, 0.9)
+        .setDepth(12)
+        .setInteractive({ useHandCursor: true });
+
+      // Button text
+      const btnText = this.add.text(btnX, btnY, `${i + 1}. ${text}`, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '30px',
+        color: '#a0c4ff'
+      }).setOrigin(0.5).setDepth(13);
+
+      // Hover effect
+      btnBg.on('pointerover', () => btnBg.setFillStyle(0x264d73, 1));
+      btnBg.on('pointerout', () => btnBg.setFillStyle(0x1a3a5c, 0.9));
+
+      // Click: pick this choice and continue
+      btnBg.on('pointerdown', () => {
+        this.clearChoices();
+        this.choiceMode = false;
+        this.dialogueIndex++;
+        this.showLine();
+      });
+
+      this.choiceButtons.push(btnBg, btnText);
+    });
+  }
+
+  /* Remove choice buttons from the scene */
+  clearChoices() {
+    this.choiceButtons.forEach(obj => obj.destroy());
+    this.choiceButtons = [];
+  }
+
+  /* Handle click / space input */
+  advance() {
+    if (this.choiceMode) return; // wait for choice click
+
+    if (this.isTyping) {
+      // Skip typewriter — show full text immediately
+      if (this.typeTimer) this.typeTimer.destroy();
+      const entry = DIALOGUE[this.dialogueIndex];
+      this.dialogueText.setText(entry.text);
+      this.isTyping = false;
+      this.onLineComplete(entry);
+      return;
+    }
+
+    const entry = DIALOGUE[this.dialogueIndex];
+    if (entry && entry.end) return; // already at end
+
+    // Move to next line
+    this.dialogueIndex++;
+    if (this.dialogueIndex < DIALOGUE.length) {
+      this.showLine();
+    }
+  }
+}
+
+// ---- Phaser game config ----
+const config = {
+  type: Phaser.AUTO,
+  width: 1920,
+  height: 1080,
+  parent: document.body,
+  backgroundColor: '#000000',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  scene: [PrologueScene]
+};
+
+const game = new Phaser.Game(config);
+</script>
+</body>
+</html>

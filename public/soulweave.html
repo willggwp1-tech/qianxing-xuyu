@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>牽星絮語 — 星圖網絡</title>
+  <script>
+    // Gate: redirect to story if not completed
+    if (localStorage.getItem('soulweaveStoryDone') !== 'true') {
+      window.location.replace('soulweave_story.html');
+    }
+  </script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+      background: #060a14;
+      color: #d0d8e8;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* --- Background --- */
+    .bg-image {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: url('assets/background/background.png') center/cover no-repeat;
+      z-index: 0;
+    }
+    /* --- Layout --- */
+    .page-wrapper {
+      position: relative; z-index: 1;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 3rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    header h1 {
+      font-size: 2.2rem;
+      color: #a0c4ff;
+      letter-spacing: 0.15em;
+      text-shadow: 0 0 20px rgba(120, 180, 255, 0.3);
+    }
+    header .subtitle {
+      color: #6a7a90;
+      font-size: 0.9rem;
+      margin-top: 0.3rem;
+    }
+
+    /* --- Graph Section --- */
+    .graph-section {
+      background: rgba(12, 18, 36, 0.6);
+      border: 1px solid rgba(100, 160, 255, 0.1);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    .graph-section h2 {
+      padding: 0.8rem 1.2rem;
+      font-size: 1rem;
+      color: #7aafdb;
+      border-bottom: 1px solid rgba(100, 160, 255, 0.08);
+      letter-spacing: 0.1em;
+    }
+    #graph {
+      width: 100%;
+      height: 520px;
+      position: relative;
+      cursor: default;
+    }
+    #graph svg { width: 100%; height: 100%; }
+
+    /* Tooltip */
+    .graph-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(10, 16, 32, 0.92);
+      border: 1px solid rgba(100, 160, 255, 0.25);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      color: #c0d4ee;
+      max-width: 220px;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 10;
+    }
+    .graph-tooltip .tt-name { color: #a0c4ff; font-weight: bold; margin-bottom: 3px; }
+    .graph-tooltip .tt-msg  { color: #8a9ab0; font-style: italic; }
+    .graph-tooltip .tt-hint { color: #506878; font-size: 0.72rem; margin-top: 4px; }
+
+    /* --- User Popup Overlay --- */
+    .popup-overlay {
+      position: fixed; inset: 0;
+      background: rgba(4, 6, 14, 0.65);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .popup-overlay.visible { display: flex; }
+
+    .user-popup {
+      background: rgba(14, 20, 40, 0.95);
+      border: 1px solid rgba(100, 160, 255, 0.2);
+      border-radius: 14px;
+      padding: 1.6rem 1.8rem;
+      min-width: 320px;
+      max-width: 420px;
+      width: 90vw;
+      box-shadow: 0 0 40px rgba(80, 140, 220, 0.12), 0 0 80px rgba(60, 100, 180, 0.06);
+      animation: popupIn 0.2s ease-out;
+    }
+    @keyframes popupIn {
+      from { opacity: 0; transform: scale(0.92) translateY(10px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .popup-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid rgba(100, 160, 255, 0.1);
+    }
+    .popup-header h2 {
+      font-size: 1rem; color: #7aafdb; letter-spacing: 0.1em;
+    }
+    .popup-close {
+      background: none; border: none; color: #506878; font-size: 1.2rem;
+      cursor: pointer; padding: 2px 8px; font-family: inherit;
+      transition: color 0.15s;
+    }
+    .popup-close:hover { color: #a0c4ff; }
+
+    .up-name {
+      font-size: 1.3rem; color: #a0c4ff; margin-bottom: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+    .up-stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px;
+      margin-bottom: 0.9rem;
+    }
+    .up-stat { font-size: 0.82rem; color: #6a8aaa; }
+    .up-stat span { color: #b8d0ee; font-weight: bold; }
+    .up-inscription {
+      padding: 10px 12px;
+      background: rgba(8, 14, 28, 0.6);
+      border-left: 2px solid rgba(100, 160, 255, 0.25);
+      border-radius: 0 6px 6px 0;
+      font-size: 0.88rem;
+      color: #8a9ab0;
+      font-style: italic;
+    }
+    .up-inscription:empty { display: none; }
+    .up-connections { margin-top: 0.9rem; }
+    .up-connections h3 {
+      font-size: 0.78rem; color: #506878; margin-bottom: 0.4rem;
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .up-conn-list { font-size: 0.84rem; color: #6a8aaa; line-height: 1.7; }
+    .up-conn-list .conn-name { color: #8ab8d8; }
+
+    /* --- Navigation --- */
+    .nav-bar {
+      text-align: center;
+      display: flex; justify-content: center; gap: 1rem;
+    }
+    .nav-btn {
+      display: inline-block; padding: 10px 32px;
+      background: rgba(26, 58, 92, 0.7); color: #a0c4ff;
+      text-decoration: none; border-radius: 6px; font-size: 0.95rem;
+      transition: background 0.2s; border: 1px solid rgba(100, 160, 255, 0.12);
+    }
+    .nav-btn:hover { background: rgba(38, 77, 115, 0.8); }
+
+    /* --- Intro Overlay --- */
+    .intro-overlay {
+      position: fixed; inset: 0;
+      z-index: 200;
+      background: #060a14;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 1.2s;
+    }
+    .intro-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .intro-content {
+      max-width: 680px;
+      padding: 2rem;
+      text-align: center;
+    }
+    .intro-line {
+      font-size: 1.12rem;
+      line-height: 2;
+      color: #8aa4c4;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+      margin-bottom: 0.6rem;
+    }
+    .intro-line.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .intro-line.highlight {
+      color: #a0c4ff;
+      font-size: 1.3rem;
+      font-weight: bold;
+      letter-spacing: 0.15em;
+      text-shadow: 0 0 24px rgba(120, 180, 255, 0.3);
+      margin-top: 0.8rem;
+    }
+    .intro-skip {
+      position: fixed;
+      bottom: 2.5rem;
+      right: 2.5rem;
+      z-index: 210;
+      background: rgba(26, 58, 92, 0.5);
+      color: rgba(160, 196, 255, 0.5);
+      border: 1px solid rgba(100, 160, 255, 0.12);
+      border-radius: 6px;
+      padding: 8px 24px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .intro-skip:hover {
+      background: rgba(38, 77, 115, 0.7);
+      color: #a0c4ff;
+    }
+    .intro-replay {
+      position: fixed;
+      top: 1.2rem; right: 1.5rem;
+      z-index: 20;
+      background: rgba(26, 58, 92, 0.5);
+      color: rgba(160, 196, 255, 0.6);
+      border: 1px solid rgba(100, 160, 255, 0.12);
+      border-radius: 6px;
+      padding: 6px 16px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .intro-replay:hover {
+      background: rgba(38, 77, 115, 0.7);
+      color: #a0c4ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-image"></div>
+
+  <!-- Intro overlay (first visit) -->
+  <div class="intro-overlay" id="introOverlay" style="display:none;">
+    <div class="intro-content" id="introContent"></div>
+    <button class="intro-skip" id="introSkip">跳過</button>
+  </div>
+
+  <!-- Replay intro button -->
+  <button class="intro-replay" id="introReplay">✨ 重播紀錄</button>
+
+  <!-- User detail popup (hidden by default) -->
+  <div class="popup-overlay" id="popup-overlay">
+    <div class="user-popup" id="user-popup">
+      <div class="popup-header">
+        <h2>⟡ 旅人資訊</h2>
+        <button class="popup-close" id="popup-close">✕</button>
+      </div>
+      <div class="up-name" id="up-name"></div>
+      <div class="up-stats" id="up-stats"></div>
+      <div class="up-inscription" id="up-inscription"></div>
+      <div class="up-connections" id="up-connections"></div>
+    </div>
+  </div>
+
+  <div class="page-wrapper">
+    <header>
+      <h1>星 圖 網 絡</h1>
+      <div class="subtitle">Soul Weave Network — 點擊星辰查看旅人資訊</div>
+    </header>
+
+    <!-- Graph -->
+    <div class="graph-section">
+      <h2>⟡ 星圖</h2>
+      <div id="graph">
+        <div class="graph-tooltip" id="tooltip"></div>
+      </div>
+    </div>
+
+    <div class="nav-bar">
+      <a class="nav-btn" href="chatbot.html">← 返回</a>
+      <a class="nav-btn" href="chapter2.html">繼續 →</a>
+    </div>
+  </div>
+
+<script>
+// ============================================================
+// Helpers
+// ============================================================
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
+function getUsername() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user ? user.username : null;
+  } catch { return null; }
+}
+
+// ============================================================
+// User Popup (star click)
+// ============================================================
+let networkData = null;
+
+function showUserPopup(d) {
+  document.getElementById('up-name').textContent = d.name;
+
+  document.getElementById('up-stats').innerHTML = `
+    <div class="up-stat">碎片活動 <span>${d.activity}</span></div>
+    <div class="up-stat">連結數 <span>${countConnections(d.id)}</span></div>
+  `;
+
+  const inscEl = document.getElementById('up-inscription');
+  inscEl.textContent = d.sampleMessage ? '「' + d.sampleMessage + '」' : '';
+
+  const conns = getConnections(d.id);
+  const connEl = document.getElementById('up-connections');
+  if (conns.length > 0) {
+    connEl.innerHTML = '<h3>相連之星</h3><div class="up-conn-list">'
+      + conns.map(c => `<span class="conn-name">${escapeHtml(c.name)}</span> ×${c.weight}`).join('　')
+      + '</div>';
+  } else {
+    connEl.innerHTML = '<h3>相連之星</h3><div class="up-conn-list" style="color:#3a4a5a">尚無連結</div>';
+  }
+
+  document.getElementById('popup-overlay').classList.add('visible');
+}
+
+function hideUserPopup() {
+  document.getElementById('popup-overlay').classList.remove('visible');
+}
+
+function countConnections(userId) {
+  if (!networkData) return 0;
+  return networkData.links.filter(l =>
+    (l.source.id || l.source) === userId || (l.target.id || l.target) === userId
+  ).length;
+}
+
+function getConnections(userId) {
+  if (!networkData) return [];
+  const nodeMap = {};
+  for (const n of networkData.nodes) nodeMap[n.id] = n.name;
+  const result = [];
+  for (const l of networkData.links) {
+    const sid = l.source.id || l.source;
+    const tid = l.target.id || l.target;
+    if (sid === userId) result.push({ name: nodeMap[tid] || tid, weight: l.weight });
+    else if (tid === userId) result.push({ name: nodeMap[sid] || sid, weight: l.weight });
+  }
+  return result;
+}
+
+// ============================================================
+// D3 Network Graph — ego-centric (me at center)
+// ============================================================
+async function loadGraph() {
+  const container = document.getElementById('graph');
+  const width = container.clientWidth;
+  const height = container.clientHeight || 520;
+  const cx = width / 2, cy = height / 2;
+
+  const username = getUsername();
+  const url = username ? `/api/network?username=${encodeURIComponent(username)}` : '/api/network';
+
+  try {
+    const res = await fetch(url);
+    networkData = await res.json();
+  } catch { return; }
+
+  if (!networkData.nodes || networkData.nodes.length === 0) {
+    container.insertAdjacentHTML('beforeend',
+      '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3a4a5a;font-style:italic;">尚無連結數據</div>');
+    return;
+  }
+
+  const myId = networkData.myId;
+
+  // Pin "me" node at center
+  for (const n of networkData.nodes) {
+    if (n.isMe) {
+      n.fx = cx;
+      n.fy = cy;
+    }
+  }
+
+  const svg = d3.select('#graph').append('svg').attr('viewBox', [0, 0, width, height]);
+  const tooltip = document.getElementById('tooltip');
+
+  // Glow filter for the "me" node
+  const defs = svg.append('defs');
+  const filter = defs.append('filter').attr('id', 'glow-me');
+  filter.append('feGaussianBlur').attr('stdDeviation', 6).attr('result', 'blur');
+  filter.append('feComposite').attr('in', 'SourceGraphic').attr('in2', 'blur').attr('operator', 'over');
+
+  const simulation = d3.forceSimulation(networkData.nodes)
+    .force('link', d3.forceLink(networkData.links).id(d => d.id).distance(120))
+    .force('charge', d3.forceManyBody().strength(-300))
+    .force('center', d3.forceCenter(cx, cy))
+    .force('collision', d3.forceCollide().radius(d => nodeRadius(d) + 6));
+
+  // Link lines
+  const link = svg.append('g')
+    .selectAll('line').data(networkData.links).join('line')
+    .attr('stroke', d => {
+      const s = d.source.id || d.source;
+      const t = d.target.id || d.target;
+      return (s === myId || t === myId) ? '#5ab0ee' : '#4a6a8a';
+    })
+    .attr('stroke-opacity', d => {
+      const s = d.source.id || d.source;
+      const t = d.target.id || d.target;
+      return (s === myId || t === myId) ? 0.45 : 0.15;
+    })
+    .attr('stroke-width', d => Math.min(3, Math.max(1, d.weight)));
+
+  // Node circles
+  const node = svg.append('g')
+    .selectAll('circle').data(networkData.nodes).join('circle')
+    .attr('r', d => d.isMe ? 14 : nodeRadius(d))
+    .attr('fill', d => d.isMe ? '#ffd866' : '#5a9fd4')
+    .attr('fill-opacity', d => d.isMe ? 0.9 : 0.3 + Math.min(0.7, (d.activity || 0) * 0.08))
+    .attr('stroke', d => d.isMe ? '#ffe6a0' : '#7ac0ff')
+    .attr('stroke-width', d => d.isMe ? 2.5 : 0.5)
+    .attr('stroke-opacity', d => d.isMe ? 0.9 : 0.3)
+    .attr('filter', d => d.isMe ? 'url(#glow-me)' : null)
+    .style('cursor', 'pointer');
+
+  // Labels
+  const label = svg.append('g')
+    .selectAll('text').data(networkData.nodes).join('text')
+    .text(d => d.isMe ? `★ ${d.name}` : d.name)
+    .attr('font-size', d => d.isMe ? '13px' : '10px')
+    .attr('font-weight', d => d.isMe ? 'bold' : 'normal')
+    .attr('fill', d => d.isMe ? '#ffd866' : '#7a9ab8')
+    .attr('text-anchor', 'middle')
+    .attr('dy', d => (d.isMe ? 14 : nodeRadius(d)) + 14)
+    .style('pointer-events', 'none');
+
+  // Click → show popup
+  node.on('click', (event, d) => {
+    event.stopPropagation();
+    node.attr('stroke-width', nd => nd.isMe ? 2.5 : 0.5)
+        .attr('stroke-opacity', nd => nd.isMe ? 0.9 : 0.3);
+    d3.select(event.currentTarget).attr('stroke-width', 2.5).attr('stroke-opacity', 0.9);
+    showUserPopup(d);
+  });
+
+  svg.on('click', () => {
+    node.attr('stroke-width', nd => nd.isMe ? 2.5 : 0.5)
+        .attr('stroke-opacity', nd => nd.isMe ? 0.9 : 0.3);
+  });
+
+  // Tooltip on hover
+  node.on('mouseenter', (event, d) => {
+    tooltip.style.opacity = '1';
+    tooltip.innerHTML =
+      `<div class="tt-name">${d.isMe ? '★ ' : ''}${escapeHtml(d.name)}</div>`
+      + (d.sampleMessage ? `<div class="tt-msg">「${escapeHtml(d.sampleMessage)}」</div>` : '')
+      + '<div class="tt-hint">點擊查看詳情</div>';
+  }).on('mousemove', (event) => {
+    const rect = container.getBoundingClientRect();
+    tooltip.style.left = (event.clientX - rect.left + 12) + 'px';
+    tooltip.style.top  = (event.clientY - rect.top  - 10) + 'px';
+  }).on('mouseleave', () => {
+    tooltip.style.opacity = '0';
+  });
+
+  simulation.on('tick', () => {
+    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    node.attr('cx', d => d.x).attr('cy', d => d.y);
+    label.attr('x', d => d.x).attr('y', d => d.y);
+  });
+}
+
+function nodeRadius(d) {
+  return 5 + Math.log((d.activity || 0) + 1) * 4;
+}
+
+// ============================================================
+// Intro Animation (first visit only)
+// ============================================================
+const INTRO_LINES = [
+  { text: '在星憶空間裡，有許多來自五湖四海的陌生人的星核——' },
+  { text: '每一顆，代表着一個人的內心及情感。' },
+  { text: '或悲傷，或痛苦，或快樂，或無奈，或焦慮，或感恩⋯⋯' },
+  { text: '但人們的生活總得向前。' },
+  { text: '因此，人們學會團結，互相支持，給予彼此走下去的動力。' },
+  { text: '彼此支持的人們，他們的星核會互相產生連結——' },
+  { text: '透過鼓勵或讚許，給予對方能量，一起對抗情緒困擾。' },
+  { text: '生活必須繼續，', highlight: true },
+  { text: '你並不孤單。', highlight: true },
+];
+
+let introTimers = [];
+
+function showIntro() {
+  const overlay = document.getElementById('introOverlay');
+  const content = document.getElementById('introContent');
+  const skipBtn = document.getElementById('introSkip');
+
+  // Reset state
+  introTimers.forEach(clearTimeout);
+  introTimers = [];
+  content.innerHTML = '';
+  overlay.classList.remove('fade-out');
+  overlay.style.display = 'flex';
+  skipBtn.style.display = 'block';
+
+  // Create line elements
+  const lineEls = INTRO_LINES.map(line => {
+    const div = document.createElement('div');
+    div.className = 'intro-line' + (line.highlight ? ' highlight' : '');
+    div.textContent = line.text;
+    content.appendChild(div);
+    return div;
+  });
+
+  // Stagger reveal
+  let delay = 600;
+  lineEls.forEach((el) => {
+    const t = setTimeout(() => el.classList.add('visible'), delay);
+    introTimers.push(t);
+    delay += 1400;
+  });
+
+  // Auto-dismiss after all lines shown + pause
+  const dismissTimer = setTimeout(() => dismissIntro(), delay + 2000);
+  introTimers.push(dismissTimer);
+
+  // Skip button (clone to remove old listeners)
+  const newSkip = skipBtn.cloneNode(true);
+  skipBtn.parentNode.replaceChild(newSkip, skipBtn);
+  newSkip.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dismissIntro();
+  });
+
+  // Click overlay to dismiss (after first line visible)
+  function onOverlayClick() {
+    dismissIntro();
+    overlay.removeEventListener('click', onOverlayClick);
+  }
+  const clickTimer = setTimeout(() => {
+    overlay.addEventListener('click', onOverlayClick);
+  }, 2000);
+  introTimers.push(clickTimer);
+}
+
+function dismissIntro() {
+  introTimers.forEach(clearTimeout);
+  introTimers = [];
+  const overlay = document.getElementById('introOverlay');
+  const skipBtn = document.getElementById('introSkip');
+  overlay.classList.add('fade-out');
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    if (skipBtn) skipBtn.style.display = 'none';
+  }, 1300);
+  localStorage.setItem('soulweaveIntroDone', 'true');
+}
+
+// ============================================================
+// Init
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  // Close popup via button or clicking overlay background
+  document.getElementById('popup-close').addEventListener('click', hideUserPopup);
+  document.getElementById('popup-overlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) hideUserPopup();
+  });
+
+  // Show intro on first visit
+  if (localStorage.getItem('soulweaveIntroDone') !== 'true') {
+    showIntro();
+  }
+
+  // Replay intro button
+  document.getElementById('introReplay').addEventListener('click', () => showIntro());
+
+  loadGraph();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "qianxing-xuyu",
+  "version": "1.0.0",
+  "description": "牽星絮語 — website navigation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "express": "^4.21.0",
+    "mongodb": "^7.1.0"
+  }
+}

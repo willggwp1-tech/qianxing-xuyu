@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>牽星絮語 — 星憶空間</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+      background: #060a14;
+      color: #d0d8e8;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* --- Starfield canvas --- */
+    #starfield {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 0;
+    }
+
+    /* --- Dialogue container --- */
+    .dialogue-wrapper {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 3rem;
+    }
+
+    /* --- Choice buttons area --- */
+    .choices-area {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.2rem;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .choices-area.visible { opacity: 1; }
+
+    .choice-btn {
+      padding: 12px 40px;
+      background: rgba(26, 58, 92, 0.85);
+      color: #a0c4ff;
+      border: 1px solid rgba(160, 196, 255, 0.2);
+      border-radius: 8px;
+      font-size: 1.05rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s, border-color 0.2s;
+    }
+    .choice-btn:hover {
+      background: rgba(38, 77, 115, 0.9);
+      border-color: rgba(160, 196, 255, 0.5);
+      transform: scale(1.04);
+    }
+
+    /* --- Dialogue box --- */
+    .dialogue-box {
+      width: min(880px, 90vw);
+      min-height: 160px;
+      background: rgba(8, 14, 28, 0.88);
+      border: 1px solid rgba(100, 160, 255, 0.12);
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      position: relative;
+      backdrop-filter: blur(6px);
+    }
+
+    .speaker-name {
+      font-size: 0.92rem;
+      color: #7eb8ff;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.6rem;
+      min-height: 1.2em;
+    }
+
+    .dialogue-text {
+      font-size: 1.08rem;
+      line-height: 1.8;
+      color: #c8d4e8;
+      min-height: 3em;
+    }
+
+    .continue-hint {
+      position: absolute;
+      bottom: 12px;
+      right: 20px;
+      font-size: 0.78rem;
+      color: rgba(160, 196, 255, 0.4);
+      animation: blink 1.2s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    /* --- Narration (centered, no speaker) --- */
+    .narration-mode .speaker-name { display: none; }
+    .narration-mode .dialogue-text {
+      text-align: center;
+      color: #8899bb;
+      font-style: italic;
+    }
+
+    /* --- Fade-in animation --- */
+    .fade-in {
+      animation: fadeIn 0.6s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* --- Log panel (scrollable history) --- */
+    .log-toggle {
+      position: fixed;
+      top: 1.2rem; right: 1.5rem;
+      z-index: 20;
+      background: rgba(26, 58, 92, 0.6);
+      color: #7eb8ff;
+      border: 1px solid rgba(100, 160, 255, 0.15);
+      border-radius: 6px;
+      padding: 6px 16px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .log-toggle:hover { background: rgba(38, 77, 115, 0.8); }
+
+    .log-panel {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 30;
+      background: rgba(6, 10, 20, 0.95);
+      padding: 3rem 2rem;
+      overflow-y: auto;
+      display: none;
+    }
+    .log-panel.open { display: block; }
+
+    .log-panel h2 {
+      color: #a0c4ff;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      font-size: 1.3rem;
+    }
+    .log-entry {
+      margin-bottom: 0.8rem;
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+    .log-entry .log-speaker {
+      color: #7eb8ff;
+      font-weight: bold;
+    }
+    .log-entry .log-text {
+      color: #aab4c8;
+    }
+    .log-close {
+      display: block;
+      margin: 2rem auto 0;
+      padding: 8px 28px;
+      background: #1a3a5c;
+      color: #a0c4ff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    /* --- Screen transition overlay --- */
+    .screen-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 50;
+      background: #060a14;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.8s;
+    }
+    .screen-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+
+<button class="log-toggle" id="logToggle">對話記錄</button>
+
+<div class="log-panel" id="logPanel">
+  <h2>對話記錄</h2>
+  <div id="logContent"></div>
+  <button class="log-close" id="logClose">關閉</button>
+</div>
+
+<div class="dialogue-wrapper" id="dialogueWrapper">
+  <div class="choices-area" id="choicesArea"></div>
+  <div class="dialogue-box" id="dialogueBox">
+    <div class="speaker-name" id="speakerName"></div>
+    <div class="dialogue-text" id="dialogueText"></div>
+    <div class="continue-hint" id="continueHint">▼ 點擊繼續</div>
+  </div>
+</div>
+
+<div class="screen-overlay" id="screenOverlay"></div>
+
+<script>
+/* ============================================================
+   牽星絮語 — 星憶空間劇情 (Soul Weave Story)
+   Text-based RPG dialogue before first Soul Weave access
+   ============================================================ */
+
+// ---- Dialogue script ----
+const DIALOGUE = [
+  { speaker: '', text: '某日，我在星憶空間休息，看見許多星核圍成一堆發亮。' },
+  { speaker: '我', text: '哇～這些星核居然會靠這麼近，好壯觀啊。' },
+  { speaker: '摩耳菲婭', text: '很神奇吧，這是因為每一顆代表着一個人的內心及情感，他們可能擁有許多複雜的情感，開心，失望，悲傷等等。' },
+  { speaker: '摩耳菲婭', text: '當他們的負面情緒持續出現，負面情緒便會蓋過他們正面樂觀的能量，陷入情緒困擾。在星憶空間的具體表現便是星核的光芒逐漸減弱，直至黯淡無光。' },
+  { speaker: '摩耳菲婭', text: '有的人可以自己調節過來，但有的人沒有辦法。在現實裡，當這些人被他人支持、鼓勵、讚許等，因此而跨過情緒低谷，重拾積極樂觀的心態，屬於那人的星核便會恢復光亮。' },
+  { speaker: '摩耳菲婭', text: '亦因此，人們心連心，星核之間開始產生連結，開始互相靠攏，一起發光發亮，抵抗來自名為負面情緒的敵人。' },
+  { speaker: '摩耳菲婭', text: '很厲害吧，這是團結與關愛互助的力量。', proud: true },
+  { speaker: '', text: '你想說什麼？', choices: ['哇！', '好厲害'] },
+  { speaker: '摩耳菲婭', text: '你要試試放飛一顆屬於你的星核嗎？可以把自己的心願或者鼓勵的說話寄託在裡面哦。' },
+  { speaker: '', text: '你的選擇是？', choices: ['要', '不要'], choiceKey: 'launch' },
+];
+
+// Branch lines for the "不要" choice
+const DECLINE_LINES = [
+  { speaker: '摩耳菲婭', text: '好，等你想要放飛的時候再來吧。' }
+];
+
+// ---- State ----
+let currentIndex = 0;
+let isTyping = false;
+let typeTimer = null;
+let fullText = '';
+const log = [];
+
+// ---- DOM refs ----
+const speakerEl    = document.getElementById('speakerName');
+const textEl       = document.getElementById('dialogueText');
+const hintEl       = document.getElementById('continueHint');
+const choicesArea   = document.getElementById('choicesArea');
+const dialogueBox   = document.getElementById('dialogueBox');
+const logToggle     = document.getElementById('logToggle');
+const logPanel      = document.getElementById('logPanel');
+const logContent    = document.getElementById('logContent');
+const logClose      = document.getElementById('logClose');
+const overlay       = document.getElementById('screenOverlay');
+
+// ---- Starfield background ----
+(function initStarfield() {
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    initStars();
+  }
+
+  function initStars() {
+    stars = [];
+    const count = Math.floor((canvas.width * canvas.height) / 3000);
+    for (let i = 0; i < count; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 1.5 + 0.3,
+        alpha: Math.random(),
+        speed: Math.random() * 0.005 + 0.002
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const s of stars) {
+      s.alpha += s.speed;
+      if (s.alpha > 1 || s.alpha < 0) s.speed = -s.speed;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(180, 210, 255, ${Math.max(0, Math.min(1, s.alpha))})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  draw();
+})();
+
+// ---- Typewriter effect ----
+function typeWrite(text, el, callback) {
+  isTyping = true;
+  fullText = text;
+  el.textContent = '';
+  let i = 0;
+
+  function tick() {
+    if (i < text.length) {
+      el.textContent += text[i];
+      i++;
+      typeTimer = setTimeout(tick, 35);
+    } else {
+      isTyping = false;
+      if (callback) callback();
+    }
+  }
+  tick();
+}
+
+function skipTypewriter() {
+  if (typeTimer) clearTimeout(typeTimer);
+  textEl.textContent = fullText;
+  isTyping = false;
+}
+
+// ---- Show a dialogue entry ----
+function showEntry(entry) {
+  // Hide choices and hint
+  choicesArea.classList.remove('visible');
+  choicesArea.innerHTML = '';
+  hintEl.style.display = 'none';
+
+  // Speaker
+  const isNarration = !entry.speaker;
+  dialogueBox.classList.toggle('narration-mode', isNarration);
+  speakerEl.textContent = entry.speaker || '';
+
+  // Proud annotation
+  let displayText = entry.text;
+  if (entry.proud) {
+    speakerEl.textContent = '摩耳菲婭（自豪地說）';
+  }
+
+  // Typewriter
+  dialogueBox.classList.add('fade-in');
+  typeWrite(displayText, textEl, () => {
+    if (entry.choices) {
+      showChoices(entry.choices, entry.choiceKey);
+    } else {
+      hintEl.style.display = 'block';
+    }
+  });
+
+  // Remove fade-in after animation
+  setTimeout(() => dialogueBox.classList.remove('fade-in'), 600);
+}
+
+// ---- Show choice buttons ----
+function showChoices(choices, choiceKey) {
+  choicesArea.innerHTML = '';
+  choices.forEach((text, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = text;
+    btn.addEventListener('click', () => onChoice(i, text, choiceKey));
+    choicesArea.appendChild(btn);
+  });
+  choicesArea.classList.add('visible');
+}
+
+// ---- Handle choice ----
+function onChoice(index, text, choiceKey) {
+  // Log the choice
+  log.push({ speaker: '我', text: text });
+  choicesArea.classList.remove('visible');
+
+  if (choiceKey === 'launch') {
+    if (index === 0) {
+      // "要" — mark complete and go to soulweave
+      markStoryComplete();
+      transitionTo('soulweave.html');
+    } else {
+      // "不要" — show decline lines, then go to soulweave
+      showDeclineSequence();
+    }
+  } else {
+    // Normal choice — advance to next line
+    currentIndex++;
+    if (currentIndex < DIALOGUE.length) {
+      showEntry(DIALOGUE[currentIndex]);
+    }
+  }
+}
+
+// ---- Decline sequence ----
+function showDeclineSequence() {
+  let di = 0;
+
+  function showNext() {
+    if (di < DECLINE_LINES.length) {
+      const entry = DECLINE_LINES[di];
+      log.push({ speaker: entry.speaker, text: entry.text });
+
+      speakerEl.textContent = entry.speaker || '';
+      dialogueBox.classList.toggle('narration-mode', !entry.speaker);
+      hintEl.style.display = 'none';
+
+      typeWrite(entry.text, textEl, () => {
+        hintEl.style.display = 'block';
+        di++;
+
+        // Wait for click to advance
+        const handler = (e) => {
+          if (logPanel.classList.contains('open')) return;
+          e.preventDefault();
+          document.removeEventListener('click', handler);
+          if (di < DECLINE_LINES.length) {
+            showNext();
+          } else {
+            markStoryComplete();
+            transitionTo('soulweave.html');
+          }
+        };
+        document.addEventListener('click', handler);
+      });
+    }
+  }
+  showNext();
+}
+
+// ---- Mark story as complete ----
+function markStoryComplete() {
+  localStorage.setItem('soulweaveStoryDone', 'true');
+
+  // Also save to server if logged in
+  const username = getUsername();
+  if (username) {
+    fetch('/api/soulweave-story/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    }).catch(() => {});
+  }
+}
+
+function getUsername() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user ? user.username : null;
+  } catch { return null; }
+}
+
+// ---- Transition to next page ----
+function transitionTo(url) {
+  overlay.classList.add('active');
+  setTimeout(() => { window.location.href = url; }, 900);
+}
+
+// ---- Advance on click ----
+document.addEventListener('click', (e) => {
+  // Ignore if log is open or clicking buttons
+  if (logPanel.classList.contains('open')) return;
+  if (e.target.closest('.choice-btn') || e.target.closest('.log-toggle')) return;
+
+  if (isTyping) {
+    skipTypewriter();
+    const entry = DIALOGUE[currentIndex];
+    if (entry && entry.choices) {
+      showChoices(entry.choices, entry.choiceKey);
+    } else {
+      hintEl.style.display = 'block';
+    }
+    return;
+  }
+
+  // If choices are visible, don't advance
+  if (choicesArea.classList.contains('visible')) return;
+
+  // Advance
+  const entry = DIALOGUE[currentIndex];
+  if (entry) {
+    log.push({ speaker: entry.speaker, text: entry.text });
+  }
+
+  currentIndex++;
+  if (currentIndex < DIALOGUE.length) {
+    showEntry(DIALOGUE[currentIndex]);
+  }
+});
+
+// ---- Log panel ----
+logToggle.addEventListener('click', (e) => {
+  e.stopPropagation();
+  logContent.innerHTML = log.map(l => {
+    const sp = l.speaker ? `<span class="log-speaker">${l.speaker}：</span>` : '';
+    return `<div class="log-entry">${sp}<span class="log-text">${l.speaker ? '' : ''}${l.text}</span></div>`;
+  }).join('');
+  logPanel.classList.add('open');
+});
+
+logClose.addEventListener('click', (e) => {
+  e.stopPropagation();
+  logPanel.classList.remove('open');
+});
+
+// ---- Keyboard support ----
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && logPanel.classList.contains('open')) {
+    logPanel.classList.remove('open');
+    return;
+  }
+  if (e.key === ' ' || e.key === 'Enter') {
+    if (logPanel.classList.contains('open')) return;
+    if (choicesArea.classList.contains('visible')) return;
+    document.dispatchEvent(new MouseEvent('click'));
+  }
+});
+
+// ---- Check if already completed ----
+if (localStorage.getItem('soulweaveStoryDone') === 'true') {
+  // Already done — go straight to soulweave
+  window.location.href = 'soulweave.html';
+} else {
+  // Start the dialogue
+  showEntry(DIALOGUE[0]);
+}
+</script>
+</body>
+</html>

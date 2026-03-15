@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>牽星絮語 — 對決界面</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; }
+  </style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script>
+/* ============================================================
+   牽星絮語 — 對決 (Duel Scene) — Phaser 3
+   ============================================================ */
+
+// ---- Default card data (used if nothing passed from prepare) ----
+const DEFAULT_CARDS = [
+  { id: 1, type: 'analysis',  name: '理性分析', desc: '以邏輯拆解扭曲思維', color: 0x4488ff, order: 1, isCore: false },
+  { id: 2, type: 'reframe',   name: '認知重構', desc: '換個角度看待問題',   color: 0x44cc88, order: 2, isCore: false },
+  { id: 3, type: 'resonance', name: '共情回應', desc: '用同理心回應情緒',   color: 0xff8844, order: 3, isCore: false },
+  { id: 4, type: 'analysis',  name: '事實核查', desc: '用事實反駁災難化思維', color: 0x4488ff, order: 4, isCore: true },
+  { id: 5, type: 'reframe',   name: '正向轉念', desc: '尋找積極的可能性',   color: 0x44cc88, order: 5, isCore: false }
+];
+
+// ---- Blue Elf attack data ----
+const ELF_ATTACKS = [
+  { text: '你永遠都會失敗的！',       type: 'disasterizing',    label: '災難化' },
+  { text: '這一切都是你的錯！',       type: 'personalization',  label: '個人化' },
+  { text: '沒有人會喜歡你的。',       type: 'mindreading',      label: '讀心術' },
+  { text: '你一次考不好，以後都不行！', type: 'overgeneralization', label: '過度概括' },
+  { text: '你做得再好也沒用。',       type: 'disqualifying',    label: '否定正面' },
+  { text: '你看，別人都比你強！',     type: 'comparison',       label: '比較思維' }
+];
+
+// ---- Match table: card type vs attack type ----
+// 'strong' = great match, 'neutral' = okay, 'weak' = bad match
+const MATCH_TABLE = {
+  analysis: {
+    personalization: 'strong', disasterizing: 'strong', overgeneralization: 'neutral',
+    mindreading: 'neutral', disqualifying: 'weak', comparison: 'weak'
+  },
+  reframe: {
+    disqualifying: 'strong', comparison: 'strong', overgeneralization: 'strong',
+    disasterizing: 'neutral', personalization: 'weak', mindreading: 'neutral'
+  },
+  resonance: {
+    mindreading: 'strong', personalization: 'neutral', comparison: 'neutral',
+    disasterizing: 'weak', overgeneralization: 'weak', disqualifying: 'strong'
+  }
+};
+
+// Damage values
+const DMG = {
+  strong:  { erosion: 25, stability: 0 },
+  neutral: { erosion: 12, stability: 8 },
+  weak:    { erosion: 5,  stability: 18 }
+};
+// Core strategy bonus
+const CORE_BONUS_EROSION = 8;
+
+// ---- Duel Scene ----
+class DuelScene extends Phaser.Scene {
+  constructor() {
+    super('DuelScene');
+    this.erosion = 100;      // Blue Elf health
+    this.stability = 100;    // Player health
+    this.turnState = 'start'; // start, elfAttack, playerTurn, resolve, end
+    this.currentAttack = null;
+    this.handCards = [];
+    this.cardObjects = [];
+    this.busy = false;       // prevent input during animations
+  }
+
+  preload() {
+    this.load.image('bg', 'assets/background/background.png');
+    this.load.image('blueElf', 'assets/character/blue_elf.png');
+    this.load.image('dialogBox', 'assets/UI/dialog_box.PNG');
+  }
+
+  create() {
+    const { width, height } = this.scale;
+
+    // Load cards from prepare scene or use defaults
+    try {
+      const stored = JSON.parse(localStorage.getItem('duelCards'));
+      this.handCards = (stored && stored.length > 0) ? stored : DEFAULT_CARDS;
+    } catch { this.handCards = DEFAULT_CARDS; }
+
+    // --- Background ---
+    this.bg = this.add.image(width / 2, height / 2, 'bg');
+    const bgScale = Math.max(width / this.bg.width, height / this.bg.height);
+    this.bg.setScale(bgScale).setAlpha(0.25);
+    this.add.rectangle(width / 2, height / 2, width, height, 0x050810, 0.65).setDepth(0);
+
+    // --- Title bar ---
+    this.add.rectangle(width / 2, 40, width, 80, 0x0a0e1a, 0.8).setDepth(1);
+    this.add.text(width / 2, 40, '第一章 — 對決', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '36px', color: '#a0c4ff', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(2);
+
+    // Pause button
+    const pauseBtn = this.add.text(width - 48, 40, '⏸', {
+      fontSize: '40px', color: '#667799'
+    }).setOrigin(0.5).setDepth(2).setInteractive({ useHandCursor: true });
+    pauseBtn.on('pointerdown', () => { window.location.href = 'prepare.html'; });
+
+    // --- Blue Elf (left side) ---
+    this.elfSprite = this.add.image(324, 396, 'blueElf').setDepth(3);
+    // Scale to reasonable size
+    const elfTargetH = 324;
+    this.elfSprite.setScale(elfTargetH / this.elfSprite.height);
+
+    // Elf name
+    this.add.text(324, 576, '摩耳甫斯', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '25px', color: '#8899cc'
+    }).setOrigin(0.5).setDepth(3);
+
+    // --- Erosion bar (Blue Elf HP) ---
+    this.add.text(144, 612, '侵蝕值', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '24px', color: '#8866aa'
+    }).setDepth(3);
+    this.erosionBarBg = this.add.rectangle(324, 648, 360, 28, 0x1a1a2e, 1)
+      .setStrokeStyle(1, 0x4444aa, 0.5).setDepth(3);
+    this.erosionBarFill = this.add.rectangle(144, 648, 360, 24, 0x8844cc, 1)
+      .setOrigin(0, 0.5).setDepth(4);
+    this.erosionText = this.add.text(504, 648, '100', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '22px', color: '#aa88dd'
+    }).setOrigin(0, 0.5).setDepth(4);
+
+    // --- Dialogue bubble (center) ---
+    this.bubbleBg = this.add.rectangle(width / 2, 360, 684, 180, 0x10152a, 0.9)
+      .setStrokeStyle(1, 0x4466aa, 0.5).setDepth(5);
+    this.bubbleText = this.add.text(width / 2, 333, '', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '30px', color: '#e0e0e0',
+      wordWrap: { width: 630 }, align: 'center'
+    }).setOrigin(0.5).setDepth(6);
+    this.bubbleType = this.add.text(width / 2, 405, '', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '24px', color: '#cc6688', fontStyle: 'italic'
+    }).setOrigin(0.5).setDepth(6);
+    this.setBubble('準備開始對決…', '');
+
+    // --- Stability bar (player HP, right side) ---
+    this.add.text(width - 504, 612, '穩定值', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '24px', color: '#448899'
+    }).setDepth(3);
+    this.stabilityBarBg = this.add.rectangle(width - 324, 648, 360, 28, 0x1a1a2e, 1)
+      .setStrokeStyle(1, 0x44aa88, 0.5).setDepth(3);
+    this.stabilityBarFill = this.add.rectangle(width - 504, 648, 360, 24, 0x44aacc, 1)
+      .setOrigin(0, 0.5).setDepth(4);
+    this.stabilityText = this.add.text(width - 144, 648, '100', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '22px', color: '#66ccdd'
+    }).setOrigin(0, 0.5).setDepth(4);
+
+    this.add.text(width - 324, 576, '玩家', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '25px', color: '#88bbcc'
+    }).setOrigin(0.5).setDepth(3);
+
+    // --- Result overlay text (hidden) ---
+    this.resultText = this.add.text(width / 2, height / 2 - 72, '', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '46px', color: '#ffffff', fontStyle: 'bold',
+      align: 'center', wordWrap: { width: 900 }
+    }).setOrigin(0.5).setDepth(50).setAlpha(0);
+    this.resultSubtext = this.add.text(width / 2, height / 2 + 18, '', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '27px', color: '#8899aa', align: 'center'
+    }).setOrigin(0.5).setDepth(50).setAlpha(0);
+
+    // --- Hand cards at bottom ---
+    this.buildHandCards();
+
+    // --- Match result feedback text (center, transient) ---
+    this.feedbackText = this.add.text(width / 2, 504, '', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '36px', color: '#ffcc44', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(30).setAlpha(0);
+
+    // --- Start the duel ---
+    this.time.delayedCall(800, () => this.elfTurn());
+  }
+
+  // ---- Build hand cards at bottom ----
+  buildHandCards() {
+    this.cardObjects.forEach(c => c.destroy());
+    this.cardObjects = [];
+
+    const { width, height } = this.scale;
+    const cardW = 234;
+    const cardH = 144;
+    const gap = 22;
+    const total = this.handCards.length;
+    const totalW = total * cardW + (total - 1) * gap;
+    const startX = (width - totalW) / 2 + cardW / 2;
+    const cardY = height - 108;
+
+    this.handCards.forEach((card, i) => {
+      const cx = startX + i * (cardW + gap);
+      const container = this.add.container(cx, cardY).setDepth(10);
+
+      const typeColor = { analysis: 0x4488ff, reframe: 0x44cc88, resonance: 0xff8844 }[card.type] || 0x888888;
+      const bg = this.add.rectangle(0, 0, cardW, cardH, 0x0f1428, 0.92)
+        .setStrokeStyle(2, card.isCore ? 0xffcc00 : typeColor, 1)
+        .setInteractive({ useHandCursor: true });
+      container.add(bg);
+
+      // Type strip
+      container.add(this.add.rectangle(0, -cardH / 2 + 7, cardW - 14, 7, typeColor, 1).setOrigin(0.5, 0));
+
+      // Card name
+      const nameText = this.add.text(0, -10, card.name, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '27px', color: '#e0e0e0', fontStyle: 'bold'
+      }).setOrigin(0.5);
+      container.add(nameText);
+
+      // Type label
+      const typeLabel = { analysis: '分析', reframe: '重構', resonance: '共情' }[card.type];
+      container.add(this.add.text(0, 28, typeLabel, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '20px', color: '#7799aa'
+      }).setOrigin(0.5));
+
+      // Core marker
+      if (card.isCore) {
+        container.add(this.add.text(cardW / 2 - 14, -cardH / 2 + 14, '★', {
+          fontSize: '25px', color: '#ffcc00'
+        }).setOrigin(0.5));
+      }
+
+      // Hover effect
+      bg.on('pointerover', () => {
+        if (this.turnState !== 'playerTurn' || this.busy) return;
+        this.tweens.add({ targets: container, scale: 1.08, y: cardY - 10, duration: 120, ease: 'Sine.easeOut' });
+        bg.setFillStyle(0x1a2a4a, 1);
+      });
+      bg.on('pointerout', () => {
+        this.tweens.add({ targets: container, scale: 1, y: cardY, duration: 120, ease: 'Sine.easeOut' });
+        bg.setFillStyle(0x0f1428, 0.92);
+      });
+
+      // Click to play card
+      bg.on('pointerdown', () => {
+        if (this.turnState !== 'playerTurn' || this.busy) return;
+        this.playCard(i, container);
+      });
+
+      // Entrance animation
+      container.setAlpha(0).setScale(0.8);
+      this.tweens.add({
+        targets: container, alpha: 1, scale: 1,
+        duration: 300, delay: i * 60, ease: 'Back.easeOut'
+      });
+
+      this.cardObjects.push(container);
+    });
+  }
+
+  // ---- Blue Elf turn ----
+  elfTurn() {
+    this.turnState = 'elfAttack';
+    this.busy = true;
+
+    // Pick a random attack
+    this.currentAttack = Phaser.Utils.Array.GetRandom(ELF_ATTACKS);
+
+    // Elf shake animation
+    this.tweens.add({
+      targets: this.elfSprite,
+      x: this.elfSprite.x - 8, duration: 50, yoyo: true, repeat: 3,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        // Show attack in bubble
+        this.setBubble(`「${this.currentAttack.text}」`, `【${this.currentAttack.label}】`);
+
+        // Flash bubble
+        this.tweens.add({
+          targets: this.bubbleBg,
+          alpha: { from: 0.5, to: 1 }, duration: 200, yoyo: true
+        });
+
+        this.time.delayedCall(1200, () => {
+          this.turnState = 'playerTurn';
+          this.busy = false;
+          this.setBubble(`「${this.currentAttack.text}」\n選擇一張卡牌回應！`, `【${this.currentAttack.label}】`);
+        });
+      }
+    });
+  }
+
+  // ---- Player plays a card ----
+  playCard(index, container) {
+    this.busy = true;
+    this.turnState = 'resolve';
+
+    const card = this.handCards[index];
+    const attackType = this.currentAttack.type;
+    const matchResult = (MATCH_TABLE[card.type] && MATCH_TABLE[card.type][attackType]) || 'neutral';
+
+    const { width } = this.scale;
+
+    // Fly card to center
+    this.tweens.add({
+      targets: container,
+      x: width / 2, y: 504, scale: 1.3,
+      duration: 400, ease: 'Cubic.easeOut',
+      onComplete: () => {
+        // Show match feedback
+        const feedbackMap = {
+          strong:  { text: '完美回應！', color: '#44ff88' },
+          neutral: { text: '一般回應',   color: '#ffcc44' },
+          weak:    { text: '效果不佳…',  color: '#ff6666' }
+        };
+        const fb = feedbackMap[matchResult];
+        this.feedbackText.setText(fb.text).setColor(fb.color).setAlpha(1);
+        this.tweens.add({
+          targets: this.feedbackText,
+          alpha: 0, y: 468, duration: 1200, ease: 'Sine.easeIn',
+          onComplete: () => { this.feedbackText.y = 504; }
+        });
+
+        // Calculate damage
+        const dmg = DMG[matchResult];
+        let erosionDmg = dmg.erosion;
+        if (card.isCore) erosionDmg += CORE_BONUS_EROSION;
+        const stabilityDmg = dmg.stability;
+
+        this.erosion = Math.max(0, this.erosion - erosionDmg);
+        this.stability = Math.max(0, this.stability - stabilityDmg);
+
+        // Update bars
+        this.updateBars();
+
+        // Update bubble
+        this.setBubble(
+          `${card.name} vs ${this.currentAttack.label}`,
+          `侵蝕 -${erosionDmg}` + (stabilityDmg > 0 ? ` · 穩定 -${stabilityDmg}` : '')
+        );
+
+        // Fade out the played card
+        this.tweens.add({
+          targets: container,
+          alpha: 0, scale: 0.5, duration: 400, delay: 500,
+          ease: 'Sine.easeIn',
+          onComplete: () => {
+            container.destroy();
+            // Remove from hand
+            this.handCards.splice(index, 1);
+            this.cardObjects.splice(index, 1);
+            // Reposition remaining cards
+            this.repositionCards();
+
+            // Check end conditions
+            this.time.delayedCall(600, () => {
+              if (this.erosion <= 0) {
+                this.endDuel(true);
+              } else if (this.stability <= 0) {
+                this.endDuel(false);
+              } else if (this.handCards.length === 0) {
+                // Out of cards — partial result
+                this.endDuel(this.erosion <= this.stability);
+              } else {
+                this.elfTurn();
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+
+  // ---- Reposition remaining cards ----
+  repositionCards() {
+    const { width, height } = this.scale;
+    const cardW = 234;
+    const gap = 22;
+    const total = this.handCards.length;
+    const totalW = total * cardW + (total - 1) * gap;
+    const startX = (width - totalW) / 2 + cardW / 2;
+    const cardY = height - 108;
+
+    this.cardObjects.forEach((container, i) => {
+      this.tweens.add({
+        targets: container,
+        x: startX + i * (cardW + gap), y: cardY,
+        duration: 300, ease: 'Sine.easeOut'
+      });
+    });
+  }
+
+  // ---- Update health bars smoothly ----
+  updateBars() {
+    const erosionW = Math.max(0, (this.erosion / 100) * 360);
+    this.tweens.add({
+      targets: this.erosionBarFill,
+      displayWidth: erosionW, duration: 500, ease: 'Sine.easeOut'
+    });
+    this.erosionText.setText(String(Math.round(this.erosion)));
+
+    const stabilityW = Math.max(0, (this.stability / 100) * 360);
+    this.tweens.add({
+      targets: this.stabilityBarFill,
+      displayWidth: stabilityW, duration: 500, ease: 'Sine.easeOut'
+    });
+    this.stabilityText.setText(String(Math.round(this.stability)));
+  }
+
+  // ---- Set dialogue bubble ----
+  setBubble(main, sub) {
+    this.bubbleText.setText(main);
+    this.bubbleType.setText(sub);
+  }
+
+  // ---- End the duel ----
+  endDuel(playerWins) {
+    this.turnState = 'end';
+    this.busy = true;
+
+    const { width, height } = this.scale;
+
+    // Dim overlay
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0)
+      .setDepth(40);
+    this.tweens.add({ targets: overlay, fillAlpha: 0.6, duration: 800 });
+
+    if (playerWins) {
+      this.resultText.setText('星核已修復！').setColor('#66ffaa');
+      this.resultSubtext.setText('你成功幫助子傑驅散了負面能量');
+      console.log('[Duel] Player wins — transition to result scene');
+    } else {
+      this.resultText.setText('穩定值歸零…').setColor('#ff6666');
+      this.resultSubtext.setText('不要氣餒，重新調整策略再試一次');
+      console.log('[Duel] Player loses — transition to reflection scene');
+    }
+
+    this.tweens.add({
+      targets: [this.resultText, this.resultSubtext],
+      alpha: 1, duration: 600, delay: 400, ease: 'Sine.easeOut'
+    });
+
+    // Continue button
+    this.time.delayedCall(1500, () => {
+      const nextLabel = playerWins ? '繼續 →' : '重新準備';
+      const nextUrl = playerWins ? 'chatbot.html' : 'prepare.html';
+
+      const btn = this.add.container(width / 2, height / 2 + 108).setDepth(50).setAlpha(0);
+      const btnBg = this.add.rectangle(0, 0, 360, 82, 0x1a3a5c, 0.9)
+        .setStrokeStyle(1, 0x4488cc, 0.6)
+        .setInteractive({ useHandCursor: true });
+      const btnText = this.add.text(0, 0, nextLabel, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '32px', color: '#a0c4ff'
+      }).setOrigin(0.5);
+      btn.add([btnBg, btnText]);
+
+      this.tweens.add({ targets: btn, alpha: 1, duration: 400, ease: 'Sine.easeOut' });
+
+      btnBg.on('pointerover', () => {
+        this.tweens.add({ targets: btn, scale: 1.06, duration: 100 });
+        btnBg.setFillStyle(0x264d73, 1);
+      });
+      btnBg.on('pointerout', () => {
+        this.tweens.add({ targets: btn, scale: 1, duration: 100 });
+        btnBg.setFillStyle(0x1a3a5c, 0.9);
+      });
+      btnBg.on('pointerdown', () => { window.location.href = nextUrl; });
+    });
+  }
+}
+
+// ---- Phaser config ----
+const config = {
+  type: Phaser.AUTO,
+  width: 1920,
+  height: 1080,
+  parent: document.body,
+  backgroundColor: '#000000',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  scene: [DuelScene]
+};
+
+const game = new Phaser.Game(config);
+</script>
+</body>
+</html>
