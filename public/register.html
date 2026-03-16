@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>牽星絮語 — 註冊 / 登入</title>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Fredoka+One&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -44,14 +45,14 @@
       position: relative; z-index: 1;
       display: flex;
       gap: 2rem;
-      align-items: flex-start;
+      align-items: stretch;
       flex-wrap: wrap;
       justify-content: center;
     }
 
     .card {
       width: 380px; max-width: 90vw;
-      background: rgba(15, 20, 40, 0.85);
+      background:  linear-gradient(0deg,rgb(205, 227, 255) 0%,  rgb(231, 184, 251) 100%);;
       border: 1px solid rgba(160, 196, 255, 0.15);
       border-radius: 16px;
       padding: 2.2rem 2rem;
@@ -60,9 +61,11 @@
     }
 
     .card-title {
-      font-size: 1.4rem;
+      font-family: 'Comfortaa', 'Fredoka One', cursive;
+      font-size: 2.5rem;
+      font-weight: normal;
       text-align: center;
-      color: #a0c4ff;
+      color: #4d6ea4;
       margin-bottom: 1.5rem;
       letter-spacing: 1px;
     }
@@ -73,18 +76,20 @@
     .field label {
       display: block;
       font-size: 0.85rem;
-      color: #8899aa;
+      font-weight: 300;
+      color: #693c77;
       margin-bottom: 0.4rem;
       letter-spacing: 1px;
     }
     .field input {
       width: 100%;
       padding: 10px 14px;
-      background: rgba(255,255,255,0.05);
+      background: rgba(179, 152, 213, 0.748);
       border: 1px solid rgba(160, 196, 255, 0.2);
       border-radius: 8px;
       color: #e0e0e0;
       font-size: 1rem;
+      font-weight: 300;
       font-family: inherit;
       outline: none;
       transition: border-color 0.3s;
@@ -106,6 +111,7 @@
       border: 1px solid rgba(160, 196, 255, 0.25);
       border-radius: 8px;
       font-size: 1.05rem;
+      font-weight: 300;
       font-family: inherit;
       cursor: pointer;
       transition: all 0.3s;
@@ -173,55 +179,54 @@
 
   <div class="page-title">
     <h1>牽星絮語</h1>
-    <p class="subtitle">Threads woven among the stars</p>
   </div>
 
   <div class="cards-wrapper">
     <!-- Login Card -->
     <div class="card">
-      <h2 class="card-title">登入 Login</h2>
+      <h2 class="card-title">登入</h2>
       <form id="login-form">
         <div class="field">
-          <label for="login-username">使用者名稱 Username</label>
-          <input type="text" id="login-username" placeholder="Enter your username" required autocomplete="username">
+          <label for="login-username">使用者名稱</label>
+          <input type="text" id="login-username" placeholder="輸入用戶名稱" required autocomplete="username">
         </div>
         <div class="field">
-          <label for="login-password">密碼 Password</label>
-          <input type="password" id="login-password" placeholder="Enter your password" required autocomplete="current-password">
+          <label for="login-password">密碼 </label>
+          <input type="password" id="login-password" placeholder="輸入密碼" required autocomplete="current-password">
         </div>
-        <button type="submit" class="submit-btn">登入 Login</button>
+        <button type="submit" class="submit-btn">登入 </button>
       </form>
       <div id="login-msg" class="message"></div>
     </div>
 
     <!-- Register Card -->
     <div class="card">
-      <h2 class="card-title">註冊 Register</h2>
+      <h2 class="card-title">註冊 </h2>
       <form id="register-form">
         <div class="field">
-          <label for="reg-username">使用者名稱 Username</label>
-          <input type="text" id="reg-username" placeholder="Choose a username" required minlength="2" maxlength="24" autocomplete="username">
+          <label for="reg-username">使用者名稱 </label>
+          <input type="text" id="reg-username" placeholder="輸入用戶名稱" required minlength="2" maxlength="24" autocomplete="username">
         </div>
         <div class="field">
-          <label for="reg-email">電子信箱 Email</label>
-          <input type="email" id="reg-email" placeholder="you@example.com" required autocomplete="email">
+          <label for="reg-email">電子信箱 </label>
+          <input type="email" id="reg-email" placeholder="輸入電子信箱" required autocomplete="email">
         </div>
         <div class="field">
-          <label for="reg-password">密碼 Password</label>
-          <input type="password" id="reg-password" placeholder="At least 6 characters" required minlength="6" autocomplete="new-password">
+          <label for="reg-password">密碼 </label>
+          <input type="password" id="reg-password" placeholder="至少 6 個字元" required minlength="6" autocomplete="new-password">
         </div>
         <div class="field">
-          <label for="reg-confirm">確認密碼 Confirm Password</label>
-          <input type="password" id="reg-confirm" placeholder="Re-enter password" required minlength="6" autocomplete="new-password">
+          <label for="reg-confirm">確認密碼 </label>
+          <input type="password" id="reg-confirm" placeholder="再次輸入密碼" required minlength="6" autocomplete="new-password">
         </div>
-        <button type="submit" class="submit-btn">註冊 Register</button>
+        <button type="submit" class="submit-btn">註冊 </button>
       </form>
       <div id="register-msg" class="message"></div>
     </div>
   </div>
 
   <div class="nav">
-    <a class="nav-btn" href="start.html">← 返回 Back</a>
+    <a class="nav-btn" href="start.html">返回</a>
   </div>
 
   <script>
