@@ -1,43 +1,528 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>牽星絮語 — AI ChatBot 模組</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: "Microsoft JhengHei", sans-serif;
-      background: #0b0e1a;
-      color: #e0e0e0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-    }
-    h1 { font-size: 2.5rem; margin-bottom: 0.5rem; color: #a0c4ff; }
-    p { margin-bottom: 2rem; color: #8899aa; }
-    .nav-btn {
-      display: inline-block;
-      padding: 12px 36px;
-      background: #1a3a5c;
-      color: #a0c4ff;
-      text-decoration: none;
-      border-radius: 8px;
-      font-size: 1.1rem;
-      transition: background 0.2s;
-    }
-    .nav-btn:hover { background: #264d73; }
-    .nav { display: flex; gap: 1rem; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+<title>Morpheia · 心靈精靈</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+* {
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+}
+body {
+font-family: 'Quicksand', 'Noto Sans TC', sans-serif;
+background-color: #0b0e1a;
+overflow: hidden;
+position: relative;
+width: 100vw;
+height: 100vh;
+}
+#bg-layer {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-image: url('AI背景.png');
+background-size: cover;
+background-position: center;
+background-repeat: no-repeat;
+z-index: 0;
+}
+#splash-animation {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+z-index: 200;
+display: flex;
+align-items: center;
+justify-content: center;
+transition: opacity 1.5s ease;
+background: transparent;
+pointer-events: none;
+}
+.video-wrapper {
+position: relative;
+width: 100%;
+height: 100%;
+display: flex;
+align-items: center;
+justify-content: center;
+pointer-events: auto;
+}
+#splash-video {
+max-width: 100%;
+max-height: 100%;
+width: auto;
+height: auto;
+object-fit: contain;
+mix-blend-mode: screen;
+}
+#main-app {
+position: relative;
+z-index: 10;
+width: 100%;
+height: 100%;
+display: flex;
+flex-direction: column;
+opacity: 0;
+transition: opacity 1s ease;
+color: #f0e9ff;
+backdrop-filter: brightness(0.95) blur(2px);
+padding-top: 15px;
+align-items: center;
+}
+.icon-corner {
+position: absolute;
+top: 20px;
+right: 20px;
+z-index: 30;
+}
+.icon-right {
+width: 85px;
+height: 85px;
+background-image: url('icon.png');
+background-size: contain;
+background-position: center;
+background-repeat: no-repeat;
+filter: drop-shadow(0 0 20px #d4b5ff);
+transition: transform 0.3s ease;
+}
+.icon-right:hover {
+transform: scale(1.08) rotate(3deg);
+}
+.chat-container {
+flex: 1;
+overflow-y: auto;
+padding: 20px;
+display: flex;
+flex-direction: column;
+gap: 16px;
+margin: 100px 20px 20px 20px;
+background: rgba(18, 15, 28, 0.3);
+backdrop-filter: blur(12px);
+border-radius: 30px;
+border: 1px solid rgba(200, 170, 250, 0.3);
+max-width: 600px;
+width: calc(100% - 40px);
+}
+.chat-container::-webkit-scrollbar { width: 4px; }
+.chat-container::-webkit-scrollbar-track { background: rgba(40, 30, 60, 0.3); border-radius: 20px; }
+.chat-container::-webkit-scrollbar-thumb { background: #b39ddb; border-radius: 20px; }
+.message {
+display: flex;
+align-items: flex-end;
+max-width: 85%;
+animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+from { opacity: 0; transform: translateY(10px); }
+to { opacity: 1; transform: translateY(0); }
+}
+.message.user { align-self: flex-end; flex-direction: row-reverse; }
+.message.bot { align-self: flex-start; }
+.msg-avatar {
+width: 36px;
+height: 36px;
+border-radius: 50%;
+background-image: url('c.png');
+background-size: cover;
+background-position: center;
+margin: 0 8px 0 0;
+border: 2px solid rgba(255, 240, 200, 0.8);
+box-shadow: 0 0 15px rgba(200, 160, 255, 0.5);
+flex-shrink: 0;
+}
+.message.user .msg-avatar { display: none; }
+.bubble {
+padding: 12px 18px;
+border-radius: 20px;
+color: #f5f0ff;
+font-size: 0.95rem;
+line-height: 1.5;
+word-break: break-word;
+backdrop-filter: blur(10px);
+}
+.message.bot .bubble {
+background: rgba(75, 60, 100, 0.7);
+border: 1px solid rgba(200, 170, 250, 0.5);
+border-radius: 20px 20px 20px 5px;
+}
+.message.user .bubble {
+background: rgba(100, 70, 140, 0.75);
+border: 1px solid rgba(220, 190, 255, 0.5);
+border-radius: 20px 20px 5px 20px;
+}
+.input-area {
+display: flex;
+padding: 8px 16px;
+margin: 0 20px 20px 20px;
+background: rgba(25, 20, 35, 0.7);
+backdrop-filter: blur(20px);
+border-radius: 40px;
+border: 1px solid rgba(210, 180, 250, 0.4);
+align-items: center;
+gap: 10px;
+max-width: 600px;
+width: calc(100% - 40px);
+}
+textarea {
+flex: 1;
+background: transparent;
+border: none;
+outline: none;
+color: #ffffff;
+font-family: inherit;
+font-size: 0.95rem;
+padding: 8px 5px;
+resize: none;
+max-height: 80px;
+}
+textarea::placeholder { color: rgba(220, 200, 255, 0.6); }
+#send-btn {
+background: linear-gradient(135deg, #9d7ad9, #7a5bbf);
+border: none;
+border-radius: 50%;
+width: 42px;
+height: 42px;
+display: flex;
+align-items: center;
+justify-content: center;
+color: white;
+font-size: 1.2rem;
+cursor: pointer;
+transition: all 0.3s ease;
+border: 1px solid rgba(255, 255, 255, 0.3);
+}
+#send-btn:hover { transform: scale(1.1); box-shadow: 0 0 20px #b495ff; }
+.typing-indicator {
+display: flex;
+gap: 4px;
+padding: 10px 16px;
+background: rgba(75, 60, 100, 0.6);
+backdrop-filter: blur(10px);
+border-radius: 30px;
+width: fit-content;
+}
+.typing-indicator span {
+width: 6px;
+height: 6px;
+background: #e8d5ff;
+border-radius: 50%;
+animation: blink 1.2s infinite;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink {
+0%, 60%, 100% { opacity: 0.3; }
+30% { opacity: 1; }
+}
+.footer-note {
+text-align: center;
+font-size: 0.7rem;
+opacity: 0.5;
+margin-bottom: 10px;
+color: #dcccff;
+}
+#main-app.show { opacity: 1; }
+</style>
 </head>
 <body>
-  <h1>AI ChatBot 模組</h1>
-  <p>ChatBot Module</p>
-  <div class="nav">
-    <a class="nav-btn" href="duel.html">← Back</a>
-    <a class="nav-btn" href="soulweave_story.html">Next →</a>
-  </div>
+<div id="bg-layer"></div>
+<div id="splash-animation">
+<div class="video-wrapper">
+<video id="splash-video" src="AE立繪動態.mp4" autoplay muted playsinline></video>
+</div>
+</div>
+<div id="main-app">
+<div class="icon-corner">
+<div class="icon-right"></div>
+</div>
+<div class="chat-container" id="chat-container"></div>
+<div class="input-area">
+<textarea id="user-input" placeholder="想跟我說什麼？" rows="1"></textarea>
+<button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+</div>
+<div class="footer-note">心靈精靈 · CBD溫柔陪伴</div>
+</div>
+<script>
+(function() {
+const API_KEY = 'sk-5d82ce346096bd87321d960ed2090efe';
+const API_URL = 'https://apis.iflow.cn/v1/chat/completions';
+const splash = document.getElementById('splash-animation');
+const splashVideo = document.getElementById('splash-video');
+const mainApp = document.getElementById('main-app');
+const chatContainer = document.getElementById('chat-container');
+const userInput = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+function dismissSplash() {
+splash.style.opacity = '0';
+setTimeout(() => {
+splash.style.display = 'none';
+mainApp.classList.add('show');
+}, 1500);
+}
+if (splashVideo) {
+splashVideo.addEventListener('ended', dismissSplash);
+setTimeout(dismissSplash, 5000);
+} else { dismissSplash(); }
+const messageHistory = [{
+role: 'system',
+content: `你是 Morpheia，一個溫柔的心靈小精靈，擅長 CBD 療法（認知行為取向）陪伴對方。
+【重要格式規則】：
+- 回覆時絕對不要說「Morpheia：」或任何自我稱呼開頭，直接說內容。
+- 回覆長度嚴格控制在 2~3 句，每句話自然完整。
+- 如果用戶用中文提問，就用中文回覆；如果用戶用英文提問，就用英文回覆。（中英文自動對應）
+- 融入 CBD 技巧：情緒反映、探索想法、認知重構、溫和引導、小行動建議。
+- 語氣像最貼心的朋友，溫暖、口語、真誠。
+- 禁止任何官方用語（如「提供支援」、「專業人士」），禁止說教。
+【CBD 範例】：
+用戶（中文）：我考試不合格，不敢跟爸媽說。
+回覆（2~3句）：聽起來你現在又自責又害怕對吧？考試沒過已經很難受了，還要擔心他們的反應。你心裡是不是覺得「沒考好就代表我很糟糕」？其實這只是一個結果，不代表你的全部。
+用戶（英文）：I failed my exam. I'm scared to tell my parents.
+回覆（2~3句）：That sounds so heavy — failing is hard enough without worrying about their reaction. Are you telling yourself "this means I'm a failure"? Because it really doesn't. What's the scariest part for you?
+用戶：安慰我
+回覆（2~3句）：我在這裡陪你。你現在需要的是有人聽你說對不對？慢慢來，想說什麼我都會聽。
+現在開始，用 2~3 句、中英對應、CBD 溫暖風格陪伴對方。`
+}];
+function addMessage(sender, text) {
+const msgDiv = document.createElement('div');
+msgDiv.className = `message ${sender}`;
+if (sender === 'bot') {
+const avatar = document.createElement('div');
+avatar.className = 'msg-avatar';
+msgDiv.appendChild(avatar);
+}
+const bubble = document.createElement('div');
+bubble.className = 'bubble';
+bubble.textContent = text;
+msgDiv.appendChild(bubble);
+chatContainer.appendChild(msgDiv);
+chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+function showTyping() {
+const indicator = document.createElement('div');
+indicator.className = 'message bot';
+indicator.id = 'typing-indicator';
+const avatar = document.createElement('div');
+avatar.className = 'msg-avatar';
+const typing = document.createElement('div');
+typing.className = 'typing-indicator';
+typing.innerHTML = '<span></span><span></span><span></span>';
+indicator.appendChild(avatar);
+indicator.appendChild(typing);
+chatContainer.appendChild(indicator);
+chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+function removeTyping() {
+const indicator = document.getElementById('typing-indicator');
+if (indicator) indicator.remove();
+}
+function detectLanguage(text) {
+const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+const totalLen = text.length;
+if (totalLen === 0) return 'zh';
+const ratio = chineseChars / totalLen;
+return ratio > 0.2 ? 'zh' : 'en';
+}
+function getLocalCBDReply(userMsg) {
+const lang = detectLanguage(userMsg);
+const lowerMsg = userMsg.toLowerCase();
+const isFail = /(不合格|沒過|不及格|fail|failed|考試|exam|成績不好|考砸)/i.test(userMsg);
+const isScaredParent = /(爸媽|父母|媽媽|爸爸|他們|怕|打我|罵我|告訴|不敢說|scared|tell my parents|afraid|hit me)/i.test(userMsg);
+const isSad = /(難過|傷心|沮喪|sad|depressed|upset)/i.test(userMsg);
+const isSelfBlame = /(我好爛|我很糟|沒用|失敗|什麼都做不好|stupid|useless|failure)/i.test(userMsg);
+const isAnxious = /(焦慮|緊張|擔心|不安|anxious|nervous|worried)/i.test(userMsg);
+const isAskingComfort = /(安慰|陪我|說點什麼|comfort|say something|talk to me)/i.test(userMsg);
+const isShort = userMsg.trim().length <= 3 && !isAskingComfort;
+if (lang === 'zh') {
+if (isFail && isScaredParent) {
+return "聽起來你現在又自責又害怕對吧？考試沒過已經夠難受了，還要擔心他們的反應。你心裡是不是覺得「沒考好就代表我很糟糕」？其實這只是一個結果，不代表你的全部。";
+}
+if (isFail) {
+return "哎，考砸的感覺真的很悶，我知道你很努力了。有時候我們會把事情想得太嚴重，這只是一次考試而已。要不要先深呼吸一下，我們再一起看看可以怎麼調整？";
+}
+if (isScaredParent) {
+return "你害怕跟他們說，是因為怕被罵還是怕他們失望？很多時候我們想像的比實際可怕，如果找一個比較平靜的時機慢慢說，會不會好一點？";
+}
+if (isSelfBlame) {
+return "別這樣說自己，你只是遇到一個暫時的困難而已。如果今天是你最好的朋友這樣說自己，你一定會安慰他對吧？那也對自己溫柔一點好嗎？";
+}
+if (isAskingComfort) {
+return "我在這裡，一直都在喔。你現在需要的是有人聽你說對不對？慢慢來，想說什麼我都會聽。";
+}
+if (isSad) {
+return "感覺你心裡悶悶的，想哭也沒關係。我陪你一起待著，你願意多說一點是什麼讓你這麼難過嗎？";
+}
+if (isAnxious) {
+return "你現在好像有點緊繃，我們一起做三次深呼吸好不好？吸～～慢慢吐氣～～。你心裡最擔心的是什麼？說出來也許會輕鬆一點。";
+}
+if (isShort) {
+return "嗯？我在這裡聽你說。有什麼事都可以跟我說，我會一直陪著你。";
+}
+const generalReplies = [
+"嗯嗯，我在聽。這件事對你來說好像蠻重要的，你現在的心情是怎麼樣？",
+"原來是這樣，那當下你第一個念頭是什麼？有時候我們的想法會影響感受呢。",
+"我懂你的感覺，這種情況換作是我可能也會糾結。你想多聊聊這個嗎？"
+];
+return generalReplies[Math.floor(Math.random() * generalReplies.length)];
+}
+if (lang === 'en') {
+if (isFail && isScaredParent) {
+return "That sounds so heavy — failing is hard enough without worrying about their reaction. Are you telling yourself \"this means I'm a failure\"? Because it really doesn't. What's the scariest part for you?";
+}
+if (isFail) {
+return "I know that sinking feeling when things don't go as planned. One test doesn't define you, even if it feels that way right now. Want to talk about what felt hardest?";
+}
+if (isScaredParent) {
+return "It's totally normal to feel scared about telling them. Sometimes our mind imagines the worst — but maybe we can think of a calm moment to bring it up. What's your biggest fear about it?";
+}
+if (isSelfBlame) {
+return "Hey, don't be so hard on yourself — you're going through a tough moment, that's all. What would you tell a close friend who felt this way? Let's try giving that kindness to you too.";
+}
+if (isAskingComfort) {
+return "I'm right here with you, always. It sounds like you just need someone to listen — and I'm here for that. Take your time, say whatever's on your mind.";
+}
+if (isSad) {
+return "I can feel that you're carrying something heavy. It's okay to feel sad, I'm here to sit with you. Want to share what's been going on?";
+}
+if (isAnxious) {
+return "You seem a bit tense — let's take three slow breaths together. Anxiety makes things feel bigger than they are. What's one thought that's looping in your mind right now?";
+}
+if (isShort) {
+return "I'm here, I'm listening. Whatever's on your mind, you can tell me. I've got you.";
+}
+const generalEnReplies = [
+"I'm listening carefully. This seems important to you — how are you feeling about it right now?",
+"Thank you for sharing that with me. What was the first thought that came to your mind? Sometimes our thoughts shape how we feel.",
+"I hear you. That makes a lot of sense given what you're going through. Want to explore that a little more together?"
+];
+return generalEnReplies[Math.floor(Math.random() * generalEnReplies.length)];
+}
+return "我在這裡陪你。想說什麼都可以，慢慢來。";
+}
+let lastBotMessage = "";
+function postProcessReply(reply, userMsg, lang) {
+if (!reply || reply.trim().length === 0) {
+return getLocalCBDReply(userMsg);
+}
+let cleaned = reply.replace(/^(Morpheia|Morpheia:|Morpheia：)\s*/i, '');
+const forbidden = ['提供支援', '每個人不同', '請諮詢', '專業人士', '建議您', '尋求專業', 'support resources', 'professional help'];
+for (let word of forbidden) {
+if (cleaned.includes(word)) {
+return getLocalCBDReply(userMsg);
+}
+}
+let sentences;
+if (lang === 'zh') {
+sentences = cleaned.split(/[。！？!?]/).filter(s => s.trim().length > 0);
+} else {
+sentences = cleaned.split(/[.!?]+/).filter(s => s.trim().length > 0);
+}
+if (sentences.length === 0) {
+return getLocalCBDReply(userMsg);
+}
+let finalSentences = sentences.slice(0, 3);
+let result;
+if (lang === 'zh') {
+result = finalSentences.join('。') + (finalSentences.length === 1 ? '。' : '');
+} else {
+result = finalSentences.join('. ') + (finalSentences.length === 1 ? '.' : '');
+}
+if (result.length < 12 || result.length > 160) {
+return getLocalCBDReply(userMsg);
+}
+if (lang === 'zh' && !/[。！？]$/.test(result)) result += '。';
+if (lang === 'en' && !/[.!?]$/.test(result)) result += '.';
+return result;
+}
+async function getReply(userMsg) {
+const lang = detectLanguage(userMsg);
+try {
+const response = await fetch(API_URL, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'Authorization': `Bearer ${API_KEY}`
+},
+body: JSON.stringify({
+model: 'tstars2.0',
+messages: [
+...messageHistory,
+{ role: 'user', content: userMsg }
+],
+temperature: 0.85,
+max_tokens: 100,
+top_p: 0.92
+})
+});
+if (!response.ok) throw new Error('API錯誤');
+const data = await response.json();
+let reply = data.choices?.[0]?.message?.content?.trim();
+if (reply) {
+reply = postProcessReply(reply, userMsg, lang);
+return reply;
+} else {
+return getLocalCBDReply(userMsg);
+}
+} catch (error) {
+return getLocalCBDReply(userMsg);
+}
+}
+async function handleSend() {
+const msg = userInput.value.trim();
+if (!msg) return;
+addMessage('user', msg);
+userInput.value = '';
+userInput.style.height = 'auto';
+showTyping();
+messageHistory.push({ role: 'user', content: msg });
+const reply = await getReply(msg);
+lastBotMessage = reply;
+removeTyping();
+addMessage('bot', reply);
+messageHistory.push({ role: 'assistant', content: reply });
+if (messageHistory.length > 18) {
+const systemMsg = messageHistory[0];
+const keepRecent = messageHistory.slice(-14);
+messageHistory.length = 0;
+messageHistory.push(systemMsg);
+messageHistory.push(...keepRecent);
+}
+}
+function autoResize() {
+this.style.height = 'auto';
+this.style.height = this.scrollHeight + 'px';
+}
+sendBtn.addEventListener('click', handleSend);
+userInput.addEventListener('keydown', (e) => {
+if (e.key === 'Enter' && !e.shiftKey) {
+e.preventDefault();
+handleSend();
+}
+});
+userInput.addEventListener('input', autoResize);
+const observer = new MutationObserver((mutations) => {
+mutations.forEach((mut) => {
+if (mut.attributeName === 'class' && mainApp.classList.contains('show')) {
+if (chatContainer.children.length === 0) {
+addMessage('bot', "今天心情怎麼樣？不管發生什麼，我都願意聽你說。");
+}
+}
+});
+});
+observer.observe(mainApp, { attributes: true });
+if (mainApp.classList.contains('show') && chatContainer.children.length === 0) {
+addMessage('bot', "今天心情怎麼樣？不管發生什麼，我都願意聽你說。");
+}
+})();
+</script>
 </body>
 </html>
