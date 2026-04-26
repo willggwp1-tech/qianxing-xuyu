@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Level Select - 牽星絮語</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #1a1a2e;
+    }
+
+    /*
+      Layer order (bottom → top):
+        1. body background  (#1a1a2e)
+        2. #lottie-container  — Lottie SVG animation
+        3. Phaser canvas      — transparent; handles mouse events
+    */
+
+    #lottie-container {
+      position: absolute;
+      inset: 0;                   /* fill the viewport */
+      pointer-events: none;       /* let clicks pass through to the Phaser canvas */
+    }
+
+    /* Force the lottie SVG to fill its container */
+    #lottie-container svg {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Lottie animation layer (behind the Phaser canvas) -->
+  <div id="lottie-container"></div>
+
+  <!-- lottie-web: renders the Lottie JSON animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <!-- Phaser 3 -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+
+  <!-- Scene code -->
+  <script src="LevelSelectScene.js"></script>
+
+  <script>
+    const config = {
+      type: Phaser.AUTO,
+
+      // transparent: true makes the WebGL/Canvas background fully clear,
+      // so the lottie div behind it shows through.
+      transparent: true,
+
+      width: 1920,
+      height: 1080,
+
+      scale: {
+        mode: Phaser.Scale.FIT,           // scale to fit window
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+
+      scene: [LevelSelectScene],
+    };
+
+    new Phaser.Game(config);
+  </script>
+
+</body>
+</html>
