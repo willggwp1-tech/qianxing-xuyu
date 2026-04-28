@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>牽星絮語 — 創造星魂碎片</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #05080f;
+      color: #e0e0e0;
+      font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 32px 16px 40px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: #cc99ff;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: #556677;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+
+    /* Three-column word selector */
+    .columns {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .col {
+      background: #0b1020;
+      border: 1px solid #2a2a44;
+      border-radius: 12px;
+      padding: 20px 16px;
+      min-width: 200px;
+      flex: 1 1 200px;
+      max-width: 240px;
+    }
+
+    .col-title {
+      font-size: 0.85rem;
+      color: #8899aa;
+      text-align: center;
+      margin-bottom: 14px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .word-btn {
+      display: block;
+      width: 100%;
+      padding: 10px 0;
+      margin-bottom: 8px;
+      background: #131828;
+      border: 1px solid #2a2a44;
+      border-radius: 8px;
+      color: #aabbcc;
+      font-size: 1.05rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      text-align: center;
+    }
+
+    .word-btn:hover {
+      background: #1e2840;
+      border-color: #8866cc;
+      color: #e0d0ff;
+    }
+
+    .word-btn.selected {
+      background: #2a1a50;
+      border-color: #cc99ff;
+      color: #f0e0ff;
+      font-weight: bold;
+    }
+
+    /* Inscription preview */
+    .preview-box {
+      background: #0c1020;
+      border: 2px solid #6633cc;
+      border-radius: 14px;
+      padding: 24px 40px;
+      margin-bottom: 28px;
+      text-align: center;
+      min-width: 320px;
+    }
+
+    .preview-label {
+      font-size: 0.8rem;
+      color: #776688;
+      margin-bottom: 8px;
+      letter-spacing: 0.12em;
+    }
+
+    .preview-inscription {
+      font-size: 1.6rem;
+      color: #e8d8ff;
+      letter-spacing: 0.15em;
+      min-height: 2.2rem;
+    }
+
+    .preview-inscription.empty {
+      color: #334455;
+      font-size: 1rem;
+    }
+
+    /* Buttons row */
+    .btn-row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 14px 36px;
+      border-radius: 10px;
+      border: none;
+      font-family: inherit;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: #4422aa;
+      color: #f0e0ff;
+      border: 1px solid #8844cc;
+    }
+    .btn-primary:hover { background: #5533bb; }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: #101828;
+      color: #7799aa;
+      border: 1px solid #2a3a4a;
+    }
+    .btn-secondary:hover { background: #1a2838; }
+
+    /* Status message */
+    #statusMsg {
+      margin-top: 20px;
+      font-size: 0.95rem;
+      color: #88aacc;
+      min-height: 1.4rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<h1>✦ 創造星魂碎片</h1>
+<p class="subtitle">從每個列表各選一個詞語，組合成你的治癒銘文，送給旅途中的陌生人。</p>
+
+<!-- Word selector columns -->
+<div class="columns">
+  <div class="col" id="colA">
+    <div class="col-title">心境 · 狀態</div>
+    <!-- buttons injected by JS -->
+  </div>
+  <div class="col" id="colB">
+    <div class="col-title">行動 · 方式</div>
+  </div>
+  <div class="col" id="colC">
+    <div class="col-title">結果 · 祝願</div>
+  </div>
+</div>
+
+<!-- Inscription preview -->
+<div class="preview-box">
+  <div class="preview-label">你的銘文預覽</div>
+  <div class="preview-inscription empty" id="previewText">請從三列各選一個詞語</div>
+</div>
+
+<!-- Action buttons -->
+<div class="btn-row">
+  <button class="btn btn-primary" id="createBtn" disabled>✦ 創造碎片</button>
+  <button class="btn btn-secondary" id="skipBtn">稍後再說</button>
+</div>
+
+<div id="statusMsg"></div>
+
+<script>
+/* ============================================================
+   Shard Creation Page — shard_create.html
+   Shown after a duel win. Player picks words from 3 lists.
+   Saves shard via POST /api/fragments/generate.
+   ============================================================ */
+
+const WORDS = {
+  A: ['感恩','希望','勇氣','平靜','陪伴','理解','接納','信任','溫暖','力量'],
+  B: ['堅持','放手','面對','擁抱','說出來','休息','求助','原諒','相信','行動'],
+  C: ['會好的','不孤單','值得','自由','成長','放下','重生','光芒','平靜','連結']
+};
+
+// State
+const selected = { A: null, B: null, C: null };
+
+function getUsername() {
+  try {
+    const u = JSON.parse(localStorage.getItem('user'));
+    return u ? u.username : null;
+  } catch { return null; }
+}
+
+// Build word buttons for each column
+function buildColumn(listKey, colId) {
+  const col = document.getElementById(colId);
+  WORDS[listKey].forEach(word => {
+    const btn = document.createElement('button');
+    btn.className = 'word-btn';
+    btn.textContent = word;
+    btn.dataset.key = listKey;
+    btn.dataset.word = word;
+    btn.addEventListener('click', () => selectWord(listKey, word, btn, col));
+    col.appendChild(btn);
+  });
+}
+
+function selectWord(key, word, clickedBtn, col) {
+  // Deselect previous in same column
+  col.querySelectorAll('.word-btn').forEach(b => b.classList.remove('selected'));
+  clickedBtn.classList.add('selected');
+  selected[key] = word;
+  updatePreview();
+}
+
+function updatePreview() {
+  const preview = document.getElementById('previewText');
+  const createBtn = document.getElementById('createBtn');
+  const { A, B, C } = selected;
+
+  if (A && B && C) {
+    const inscription = `${A} ${B} ${C}`;
+    preview.textContent = inscription;
+    preview.classList.remove('empty');
+    createBtn.disabled = false;
+  } else {
+    const parts = [A || '___', B || '___', C || '___'];
+    preview.textContent = parts.join(' ');
+    preview.classList.add('empty');
+    createBtn.disabled = true;
+  }
+}
+
+async function createShard() {
+  const { A, B, C } = selected;
+  if (!A || !B || !C) return;
+
+  const username = getUsername();
+  if (!username) {
+    showStatus('請先登入 Please log in first.');
+    return;
+  }
+
+  document.getElementById('createBtn').disabled = true;
+  showStatus('正在創建碎片…');
+
+  // Read battle result for chapter/distortion context
+  let sourceChapter = 1;
+  let distortionType = '';
+  try {
+    const br = JSON.parse(localStorage.getItem('battleResult') || '{}');
+    sourceChapter = br.sourceChapter || 1;
+    distortionType = br.distortionType || '';
+  } catch {}
+
+  try {
+    const res = await fetch('/api/fragments/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, wordA: A, wordB: B, wordC: C, sourceChapter, distortionType })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showStatus(`錯誤: ${data.error}`);
+      document.getElementById('createBtn').disabled = false;
+      return;
+    }
+
+    // Save locally so the player can see their own shard
+    const myShards = JSON.parse(localStorage.getItem('myShards') || '[]');
+    myShards.push({ shardId: data.shardId, inscription: data.inscription, isDonated: false });
+    localStorage.setItem('myShards', JSON.stringify(myShards));
+
+    showStatus('✦ 碎片已創建！感謝你的祝福。');
+
+    // Navigate to next page after short delay
+    setTimeout(() => {
+      const nextPage = localStorage.getItem('afterShardCreate') || 'chatbot.html';
+      localStorage.removeItem('afterShardCreate');
+      window.location.href = nextPage;
+    }, 1800);
+
+  } catch (err) {
+    showStatus('網路錯誤，請稍後再試。');
+    document.getElementById('createBtn').disabled = false;
+  }
+}
+
+function showStatus(msg) {
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+// Skip button — go to next page without creating
+document.getElementById('skipBtn').addEventListener('click', () => {
+  const nextPage = localStorage.getItem('afterShardCreate') || 'chatbot.html';
+  localStorage.removeItem('afterShardCreate');
+  window.location.href = nextPage;
+});
+
+document.getElementById('createBtn').addEventListener('click', createShard);
+
+// Init columns
+buildColumn('A', 'colA');
+buildColumn('B', 'colB');
+buildColumn('C', 'colC');
+</script>
+</body>
+</html>

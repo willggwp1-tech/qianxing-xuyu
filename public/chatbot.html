@@ -98,6 +98,15 @@ transition: transform 0.3s ease;
 .icon-right:hover {
 transform: scale(1.08) rotate(3deg);
 }
+.chat-wrapper {
+position: relative;
+flex: 1;
+margin: 100px 20px 20px 20px;
+max-width: 600px;
+width: calc(100% - 40px);
+display: flex;
+flex-direction: column;
+}
 .chat-container {
 flex: 1;
 overflow-y: auto;
@@ -105,13 +114,10 @@ padding: 20px;
 display: flex;
 flex-direction: column;
 gap: 16px;
-margin: 100px 20px 20px 20px;
 background: rgba(18, 15, 28, 0.3);
 backdrop-filter: blur(12px);
 border-radius: 30px;
 border: 1px solid rgba(200, 170, 250, 0.3);
-max-width: 600px;
-width: calc(100% - 40px);
 }
 .chat-container::-webkit-scrollbar { width: 4px; }
 .chat-container::-webkit-scrollbar-track { background: rgba(40, 30, 60, 0.3); border-radius: 20px; }
@@ -245,7 +251,10 @@ color: #dcccff;
 <div class="icon-corner">
 <div class="icon-right"></div>
 </div>
+<div class="chat-wrapper">
+<img src="assets/icons/Chatbot_icon.png" alt="" style="position:absolute;top:-90px;right:-90px;width:180px;height:180px;object-fit:contain;filter:drop-shadow(0 0 14px #d4b5ff);pointer-events:none;z-index:20;">
 <div class="chat-container" id="chat-container"></div>
+</div>
 <div class="input-area">
 <textarea id="user-input" placeholder="想跟我說什麼？" rows="1"></textarea>
 <button id="send-btn"><i class="fas fa-paper-plane"></i></button>

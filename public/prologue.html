@@ -100,13 +100,22 @@ class PrologueScene extends Phaser.Scene {
     this.isTyping = false;        // typewriter in progress
     this.typeTimer = null;        // timer event for typewriter
     this.choiceMode = false;      // waiting for a choice click
+    this.autoplay = false;        // autoplay mode
+    this.autoplayTimer = null;    // timer for autoplay delay
   }
 
   preload() {
     // Load background / illustration images
     this.load.image('prologue1', 'assets/illustration_draft/prologue/prologue1.png');
     this.load.image('prologue2', 'assets/illustration_draft/prologue/prologue2.png');
+    this.load.image('prologue3', 'assets/illustration_draft/prologue/prologue3.png');
+    this.load.image('skipBtn', 'assets/buttons/skip.png');
+    this.load.image('choicesBox', 'assets/UI/choices_box.PNG');
     this.load.image('dialogBox', 'assets/UI/dialog_box.PNG');
+    this.load.audio('bgm', 'assets/music/story.mp3');
+    this.load.image('musicBtn', 'assets/buttons/music.png');
+    this.load.image('continueBtn', 'assets/buttons/continue.png');
+    this.load.image('autoplayBtn', 'assets/buttons/autoplay.png');
   }
 
   create() {
@@ -144,12 +153,32 @@ class PrologueScene extends Phaser.Scene {
       lineSpacing: 10
     }).setDepth(11);
 
-    // "Click to continue" indicator
-    this.continueHint = this.add.text(width - 72, height - 32, '▶ 點擊繼續', {
-      fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '25px',
-      color: '#6688aa'
-    }).setOrigin(1, 1).setDepth(11);
+    // "Click to continue" image button (bottom-right, hidden initially)
+    this.continueHint = this.add.image(width - 10, height - 8, 'continueBtn')
+      .setDisplaySize(220, 80)
+      .setOrigin(1, 1)
+      .setDepth(11)
+      .setVisible(false);
+
+    // Skip button (top-right) — image button
+    this.skipBtn = this.add.image(width - 10, 8, 'skipBtn')
+      .setDisplaySize(220, 80)
+      .setOrigin(1, 0)
+      .setDepth(11)
+      .setInteractive({ useHandCursor: true });
+    this.skipBtn.on('pointerdown', () => this.skipToEnd());
+    this.skipBtn.on('pointerover', () => this.skipBtn.setTint(0xddbbff));
+    this.skipBtn.on('pointerout', () => this.skipBtn.clearTint());
+
+    // Autoplay toggle button (top-right, left of skip) — image button
+    this.autoplayImg = this.add.image(width - 240, 8, 'autoplayBtn')
+      .setDisplaySize(220, 80)
+      .setOrigin(1, 0)
+      .setDepth(11)
+      .setInteractive({ useHandCursor: true });
+    this.autoplayImg.on('pointerdown', () => this.toggleAutoplay());
+    this.autoplayImg.on('pointerover', () => this.autoplayImg.setTint(0xaad4ff));
+    this.autoplayImg.on('pointerout', () => this.autoplayImg.clearTint());
 
     // Choice buttons container
     this.choiceButtons = [];
@@ -157,6 +186,35 @@ class PrologueScene extends Phaser.Scene {
     // --- Input: click or space to advance ---
     this.input.on('pointerdown', () => this.advance());
     this.input.keyboard.on('keydown-SPACE', () => this.advance());
+
+    // --- BGM: smooth fade-in and looping ---
+    this.musicOn = true;
+    this.bgmLoopTimer = null;
+    this.bgm = this.sound.add('bgm', { loop: false, volume: 0 });
+    const playBgm = () => {
+      if (!this.musicOn) return;
+      this.bgm.volume = 0;
+      this.bgm.play();
+      this.tweens.add({ targets: this.bgm, volume: 0.35, duration: 1500, ease: 'Linear' });
+      const fadeMs = 1400;
+      this.bgmLoopTimer = this.time.delayedCall(
+        Math.max(0, this.bgm.duration * 1000 - fadeMs), () => {
+          this.tweens.killTweensOf(this.bgm);
+          this.tweens.add({ targets: this.bgm, volume: 0, duration: fadeMs, ease: 'Linear' });
+        });
+    };
+    this.bgm.on('complete', () => { this.bgmLoopTimer = null; playBgm(); });
+    playBgm();
+
+    // Music toggle button (top-left)
+    this.musicBtn = this.add.image(10, 8, 'musicBtn')
+      .setDisplaySize(70, 70)
+      .setOrigin(0, 0)
+      .setDepth(11)
+      .setInteractive({ useHandCursor: true });
+    this.musicBtn.on('pointerdown', () => this.toggleMusic());
+    this.musicBtn.on('pointerover', () => this.musicBtn.setTint(0xaad4ff));
+    this.musicBtn.on('pointerout', () => this.musicBtn.clearTint());
 
     // --- Load saved progress or start from beginning ---
     loadProgress().then(savedIndex => {
@@ -214,6 +272,10 @@ class PrologueScene extends Phaser.Scene {
 
     let charIndex = 0;
     const fullText = entry.text;
+    // Hide continue button while typing
+    this.continueHint.setVisible(false).disableInteractive();
+    this.continueHint.removeAllListeners('pointerover');
+    this.continueHint.removeAllListeners('pointerout');
 
     if (this.typeTimer) this.typeTimer.destroy();
     this.typeTimer = this.time.addEvent({
@@ -237,54 +299,60 @@ class PrologueScene extends Phaser.Scene {
       this.showChoices(entry.choices);
     } else if (entry.end) {
       // Prologue ended — show navigation link
-      this.continueHint.setText('▶ 前往關卡選擇').setVisible(true);
-      this.continueHint.setInteractive({ useHandCursor: true });
+      this.continueHint.setVisible(true).setInteractive({ useHandCursor: true });
+      this.continueHint.on('pointerover', () => this.continueHint.setTint(0xaad4ff));
+      this.continueHint.on('pointerout', () => this.continueHint.clearTint());
       this.continueHint.once('pointerdown', () => {
-        saveProgress(0); // reset so next login goes to chapter_select
+        saveProgress(0); // reset so next login goes to level_select
         const username = getUsername();
         if (username) {
           fetch('/api/progress/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, currentPage: 'chapter_select.html', dialogueIndex: 0 })
-          }).finally(() => { window.location.href = 'chapter_select.html'; });
+            body: JSON.stringify({ username, currentPage: 'level_select.html', dialogueIndex: 0 })
+          }).finally(() => { window.location.href = 'level_select.html'; });
         } else {
-          window.location.href = 'chapter_select.html';
+          window.location.href = 'level_select.html';
         }
       });
     } else {
-      this.continueHint.setText('▶ 點擊繼續').setVisible(true);
+      this.continueHint.setVisible(true).setInteractive({ useHandCursor: true });
+      this.continueHint.on('pointerover', () => this.continueHint.setTint(0xaad4ff));
+      this.continueHint.on('pointerout', () => this.continueHint.clearTint());
+      if (this.autoplay) this.scheduleAutoAdvance();
     }
   }
 
   /* Show interactive choice buttons */
   showChoices(choices) {
     this.choiceMode = true;
-    this.continueHint.setVisible(false);
+    this.continueHint.setVisible(false).disableInteractive();
 
     const { width, height } = this.scale;
     const boxY = height - 306;
-    const startY = boxY - 70;
+    // Position choices dynamically above the dialog box with a 20px gap
+    const startY = (boxY - 60) - (choices.length - 1) * 90;
 
     choices.forEach((text, i) => {
       const btnX = width / 1.4;
-      const btnY = startY + i * 80;
+      const btnY = startY + i * 90;
 
       // Button background
-      const btnBg = this.add.rectangle(btnX, btnY, 720, 64, 0x1a3a5c, 0.9)
+      const btnBg = this.add.image(btnX, btnY, 'choicesBox')
+        .setDisplaySize(360, 80)
         .setDepth(12)
         .setInteractive({ useHandCursor: true });
 
-      // Button text
-      const btnText = this.add.text(btnX, btnY, `${i + 1}. ${text}`, {
+      // Button text (offset into the dark rectangle below the halo)
+      const btnText = this.add.text(btnX, btnY + 10, `${i + 1}. ${text}`, {
         fontFamily: '"Microsoft JhengHei", sans-serif',
         fontSize: '30px',
-        color: '#a0c4ff'
+        color: '#e8f0ff'
       }).setOrigin(0.5).setDepth(13);
 
       // Hover effect
-      btnBg.on('pointerover', () => btnBg.setFillStyle(0x264d73, 1));
-      btnBg.on('pointerout', () => btnBg.setFillStyle(0x1a3a5c, 0.9));
+      btnBg.on('pointerover', () => btnBg.setTint(0xaad4ff));
+      btnBg.on('pointerout', () => btnBg.clearTint());
 
       // Click: pick this choice and continue
       btnBg.on('pointerdown', () => {
@@ -308,6 +376,8 @@ class PrologueScene extends Phaser.Scene {
   advance() {
     if (this.choiceMode) return; // wait for choice click
 
+    if (this.autoplayTimer) { this.autoplayTimer.destroy(); this.autoplayTimer = null; }
+
     if (this.isTyping) {
       // Skip typewriter — show full text immediately
       if (this.typeTimer) this.typeTimer.destroy();
@@ -325,6 +395,73 @@ class PrologueScene extends Phaser.Scene {
     this.dialogueIndex++;
     if (this.dialogueIndex < DIALOGUE.length) {
       this.showLine();
+    }
+  }
+
+  toggleAutoplay() {
+    this.autoplay = !this.autoplay;
+    this.autoplayImg.setAlpha(this.autoplay ? 1 : 0.45);
+    if (this.autoplay && !this.isTyping && !this.choiceMode) {
+      this.scheduleAutoAdvance();
+    } else if (!this.autoplay && this.autoplayTimer) {
+      this.autoplayTimer.destroy();
+      this.autoplayTimer = null;
+    }
+  }
+
+  scheduleAutoAdvance() {
+    if (this.autoplayTimer) this.autoplayTimer.destroy();
+    this.autoplayTimer = this.time.delayedCall(2000, () => {
+      this.autoplayTimer = null;
+      if (this.autoplay && !this.choiceMode) this.advance();
+    });
+  }
+
+  skipToEnd() {
+    if (this.typeTimer) this.typeTimer.destroy();
+    if (this.autoplayTimer) { this.autoplayTimer.destroy(); this.autoplayTimer = null; }
+    this.isTyping = false;
+    this.autoplay = false;
+    this.autoplayImg.setAlpha(0.45);
+    this.clearChoices();
+    this.choiceMode = false;
+
+    const endIndex = DIALOGUE.findIndex(e => e.end);
+    if (endIndex === -1) return;
+
+    for (let i = 0; i < endIndex; i++) {
+      const e = DIALOGUE[i];
+      if (e.bg) { this.bg.setTexture(e.bg); this.fitBackground(this.bg); }
+      if (e.blackout === true) this.blackOverlay.setAlpha(1);
+      else if (e.blackout === false) this.blackOverlay.setAlpha(0);
+    }
+
+    this.dialogueIndex = endIndex;
+    this.showLine();
+  }
+
+  toggleMusic() {
+    this.musicOn = !this.musicOn;
+    this.musicBtn.setAlpha(this.musicOn ? 1 : 0.4);
+    if (this.musicOn) {
+      if (!this.bgm.isPlaying) {
+        const fadeMs = 1400;
+        this.bgm.volume = 0;
+        this.bgm.play();
+        this.tweens.add({ targets: this.bgm, volume: 0.35, duration: 1500, ease: 'Linear' });
+        this.bgmLoopTimer = this.time.delayedCall(
+          Math.max(0, this.bgm.duration * 1000 - fadeMs), () => {
+            this.tweens.killTweensOf(this.bgm);
+            this.tweens.add({ targets: this.bgm, volume: 0, duration: fadeMs, ease: 'Linear' });
+          });
+      }
+    } else {
+      if (this.bgmLoopTimer) { this.bgmLoopTimer.destroy(); this.bgmLoopTimer = null; }
+      this.tweens.killTweensOf(this.bgm);
+      this.tweens.add({
+        targets: this.bgm, volume: 0, duration: 800, ease: 'Linear',
+        onComplete: () => { if (!this.musicOn) this.bgm.stop(); }
+      });
     }
   }
 }

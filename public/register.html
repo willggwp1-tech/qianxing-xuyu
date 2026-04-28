@@ -2,11 +2,19 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=1920">
   <title>牽星絮語 — 註冊 / 登入</title>
   <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Fredoka+One&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0b0e1a;
+    }
     body {
       font-family: "Microsoft JhengHei", sans-serif;
       background: #0b0e1a;
@@ -15,8 +23,11 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
+      width: 1920px;
+      height: 1080px;
       overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
     }
 
     /* Full-screen background image */
@@ -126,6 +137,33 @@
       cursor: not-allowed;
     }
 
+    /* Image-based submit buttons (login.png / register.png) */
+    .img-submit-btn {
+      display: block;
+      background: none;
+      border: none;
+      padding: 0;
+      margin-top: 0.5rem;
+      width: 100%;
+      cursor: pointer;
+      transition: transform 0.15s, filter 0.15s;
+      overflow: visible;
+    }
+    .img-submit-btn:hover {
+      transform: scale(1.05);
+      filter: brightness(1.1);
+    }
+    .img-submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .img-submit-btn img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
     /* Message toast */
     .message {
       margin-top: 1rem;
@@ -178,7 +216,7 @@
   <div class="bg-image"></div>
 
   <div class="page-title">
-    <h1>牽星絮語</h1>
+    <img src="assets/logotype/logotype.png" alt="牽星絮語" style="height: 240px; width: auto; display: block; margin: 0 auto;">
   </div>
 
   <div class="cards-wrapper">
@@ -194,7 +232,7 @@
           <label for="login-password">密碼 </label>
           <input type="password" id="login-password" placeholder="輸入密碼" required autocomplete="current-password">
         </div>
-        <button type="submit" class="submit-btn">登入 </button>
+        <button type="submit" class="img-submit-btn"><img src="assets/buttons/login.png" alt="登入"></button>
       </form>
       <div id="login-msg" class="message"></div>
     </div>
@@ -219,7 +257,7 @@
           <label for="reg-confirm">確認密碼 </label>
           <input type="password" id="reg-confirm" placeholder="再次輸入密碼" required minlength="6" autocomplete="new-password">
         </div>
-        <button type="submit" class="submit-btn">註冊 </button>
+        <button type="submit" class="img-submit-btn"><img src="assets/buttons/register.png" alt="註冊"></button>
       </form>
       <div id="register-msg" class="message"></div>
     </div>
@@ -249,7 +287,7 @@
         return;
       }
 
-      const btn = e.target.querySelector('.submit-btn');
+      const btn = e.target.querySelector('.img-submit-btn');
       btn.disabled = true;
 
       try {
@@ -277,7 +315,7 @@
       const username = document.getElementById('login-username').value.trim();
       const password = document.getElementById('login-password').value;
 
-      const btn = e.target.querySelector('.submit-btn');
+      const btn = e.target.querySelector('.img-submit-btn');
       btn.disabled = true;
 
       try {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>牽星絮語 — 準備界面</title>
+  <title>牽星絮語 — 準備</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; overflow: hidden; }
@@ -14,275 +14,180 @@
 <script>
 /* ============================================================
    牽星絮語 — 準備界面 (Prepare Scene) — Phaser 3
+   Reads: localStorage.collectedEvidence (array of evidence IDs)
+   Shows collected evidence cards. Player reviews then starts duel.
    ============================================================ */
 
-// ---- Hand card data ----
-const HAND_CARDS = [
-  { id: 1, type: 'analysis',  name: '理性分析', desc: '以邏輯拆解扭曲思維', color: 0x4488ff },
-  { id: 2, type: 'reframe',   name: '認知重構', desc: '換個角度看待問題',   color: 0x44cc88 },
-  { id: 3, type: 'resonance', name: '共情回應', desc: '用同理心回應情緒',   color: 0xff8844 },
-  { id: 4, type: 'analysis',  name: '事實核查', desc: '用事實反駁災難化思維', color: 0x4488ff },
-  { id: 5, type: 'reframe',   name: '正向轉念', desc: '尋找積極的可能性',   color: 0x44cc88 }
+const ALL_EVIDENCE = [
+  { id: 'ev_math_notebook',   name: '數學筆記本',       type: 'cognitive_restructure',   desc: '寫滿公式的數學筆記本，體現子傑對學習的熱誠。' },
+  { id: 'ev_drawer',          name: '整齊的抽屜',       type: 'cognitive_restructure',   desc: '精心安排的課本排列，體現對上課的熱情。' },
+  { id: 'ev_study_plan',      name: '學習進度表',       type: 'behavioral_activation',   desc: '子傑用來規劃學習的進度表。' },
+  { id: 'ev_classmate_words', name: '女同學的話',       type: 'behavioral_activation',   desc: '女同學觀察到子傑每次課間都在學習。' },
+  { id: 'ev_dinosaur_model',  name: '媽媽送的暴龍模型', type: 'reduce_misunderstanding', desc: '媽媽送給子傑的禮物，小巧精緻的暴龍模型。' },
+  { id: 'ev_account_book',    name: '媽媽的帳本',       type: 'socratic_questioning',    desc: '記錄媽媽辛苦存款、大支出掏空積蓄的帳本。' }
 ];
 
-// Cards for the duel
-let cardOrder = HAND_CARDS.map(c => ({ ...c }));
+const TYPE_COLORS = {
+  cognitive_restructure:   0x4488ff,
+  behavioral_activation:   0x44cc88,
+  reduce_misunderstanding: 0xff8844,
+  socratic_questioning:    0xcc66bb
+};
 
-// ---- Prepare Scene ----
+const TYPE_LABELS = {
+  cognitive_restructure:   '認知重組',
+  behavioral_activation:   '行為活化',
+  reduce_misunderstanding: '減少誤解',
+  socratic_questioning:    '蘇格拉底式提問'
+};
+
 class PrepareScene extends Phaser.Scene {
   constructor() {
     super('PrepareScene');
-    this.cardContainers = [];
-    this.cardSlots = [];     // home positions for each slot
-    this.dragIndex = -1;     // index of card being dragged
+    this.collected = [];
   }
 
   preload() {
     this.load.image('bg', 'assets/background/background.png');
-    this.load.image('dialogBox', 'assets/UI/dialog_box.PNG');
   }
 
   create() {
     const { width, height } = this.scale;
 
-    // --- Background ---
-    this.bg = this.add.image(width / 2, height / 2, 'bg');
-    const bgScale = Math.max(width / this.bg.width, height / this.bg.height);
-    this.bg.setScale(bgScale).setAlpha(0.35);
-    this.add.rectangle(width / 2, height / 2, width, height, 0x0b0e1a, 0.6).setDepth(0);
+    try {
+      this.collected = JSON.parse(localStorage.getItem('collectedEvidence') || '[]');
+    } catch { this.collected = []; }
 
-    // --- Title ---
-    this.add.text(width / 2, 58, '第一章 — 準備', {
+    // Background
+    const bg = this.add.image(width / 2, height / 2, 'bg');
+    bg.setScale(Math.max(width / bg.width, height / bg.height));
+
+    // Title
+    this.add.text(width / 2, 44, '第一章 — 收集到的證據', {
       fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '50px', color: '#a0c4ff', fontStyle: 'bold'
+      fontSize: '48px', color: '#a0c4ff', fontStyle: 'bold'
     }).setOrigin(0.5, 0).setDepth(1);
 
-    this.add.text(width / 2, 120, '拖曳卡牌調整順序', {
+    const collectedCount = this.collected.length;
+    this.add.text(width / 2, 110, `已收集 ${collectedCount} / ${ALL_EVIDENCE.length} 項證據`, {
       fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '27px', color: '#667799'
+      fontSize: '26px', color: '#556688'
     }).setOrigin(0.5, 0).setDepth(1);
 
-    // --- Cards ---
-    this.buildCards();
+    // Evidence cards — two rows of 3
+    this.buildEvidenceCards();
 
-    // --- Drag plugin events ---
-    this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
-      gameObject.x = dragX;
-      gameObject.y = dragY;
-    });
-
-    this.input.on('dragstart', (pointer, gameObject) => {
-      this.dragIndex = this.cardContainers.indexOf(gameObject);
-      gameObject.setDepth(10);
-      this.tweens.add({ targets: gameObject, scale: 1.1, duration: 120, ease: 'Sine.easeOut' });
-      // dim other cards
-      this.cardContainers.forEach((c, i) => {
-        if (i !== this.dragIndex) c.setAlpha(0.5);
-      });
-      // show slot placeholders
-      this.showSlotIndicators(true);
-    });
-
-    this.input.on('dragend', (pointer, gameObject) => {
-      gameObject.setDepth(2);
-      // find closest slot
-      let closestIdx = this.dragIndex;
-      let closestDist = Infinity;
-      this.cardSlots.forEach((slot, i) => {
-        const dist = Phaser.Math.Distance.Between(gameObject.x, gameObject.y, slot.x, slot.y);
-        if (dist < closestDist) { closestDist = dist; closestIdx = i; }
-      });
-
-      // swap cards in data + array
-      if (closestIdx !== this.dragIndex) {
-        // swap in cardOrder
-        const tmp = cardOrder[this.dragIndex];
-        cardOrder[this.dragIndex] = cardOrder[closestIdx];
-        cardOrder[closestIdx] = tmp;
-        // swap containers in array
-        const tmpC = this.cardContainers[this.dragIndex];
-        this.cardContainers[this.dragIndex] = this.cardContainers[closestIdx];
-        this.cardContainers[closestIdx] = tmpC;
-      }
-
-      // animate all cards to their proper slot positions
-      this.cardContainers.forEach((c, i) => {
-        c.setAlpha(1);
-        this.tweens.add({
-          targets: c, x: this.cardSlots[i].x, y: this.cardSlots[i].y,
-          scale: 1, duration: 200, ease: 'Back.easeOut'
-        });
-      });
-
-      this.showSlotIndicators(false);
-      this.dragIndex = -1;
-    });
-
-    // --- Buttons at bottom ---
-    this.createButton(width / 2 - 216, height - 90, '開始對決', () => {
-      localStorage.setItem('duelCards', JSON.stringify(cardOrder));
+    // Buttons
+    this.createButton(width / 2 + 230, height - 58, '開始對決 →', () => {
       window.location.href = 'duel.html';
     });
-    this.createButton(width / 2 + 216, height - 90, '← 返回', () => {
+    this.createButton(width / 2 - 230, height - 58, '← 返回章節', () => {
       window.location.href = 'chapter1.html';
     });
-
-    // --- Instructions ---
-    this.add.text(width / 2, height - 160, '拖曳卡牌可調整順序，左方卡牌將優先出牌', {
-      fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '24px', color: '#556677'
-    }).setOrigin(0.5).setDepth(1);
   }
 
-  /* --- Show / hide slot drop indicators --- */
-  showSlotIndicators(visible) {
-    if (!this.slotIndicators) return;
-    this.slotIndicators.forEach((ind, i) => {
-      ind.setVisible(visible && i !== this.dragIndex);
-    });
-  }
-
-  buildCards() {
-    // Clear old
-    this.cardContainers.forEach(c => c.destroy());
-    this.cardContainers = [];
-    if (this.slotIndicators) this.slotIndicators.forEach(s => s.destroy());
-    this.slotIndicators = [];
-
-    const { width, height } = this.scale;
-    const totalCards = cardOrder.length;
-    const cardW = 270;
-    const cardH = 378;
-    const gap = 28;
-    const totalW = totalCards * cardW + (totalCards - 1) * gap;
+  buildEvidenceCards() {
+    const { width } = this.scale;
+    const cardW = 280;
+    const cardH = 320;
+    const gap   = 36;
+    const cols  = 3;
+    const totalW = cols * cardW + (cols - 1) * gap;
     const startX = (width - totalW) / 2 + cardW / 2;
-    const centerY = height / 2 - 10;
+    const rowYs  = [360, 720];
 
-    // Compute and store slot positions
-    this.cardSlots = [];
-    for (let i = 0; i < totalCards; i++) {
-      this.cardSlots.push({ x: startX + i * (cardW + gap), y: centerY });
-    }
+    ALL_EVIDENCE.forEach((ev, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const cx  = startX + col * (cardW + gap);
+      const cy  = rowYs[row];
 
-    // Slot drop indicators (dashed outlines)
-    this.cardSlots.forEach((slot) => {
-      const ind = this.add.rectangle(slot.x, slot.y, cardW, cardH)
-        .setStrokeStyle(2, 0x4488cc, 0.4)
-        .setFillStyle(0x4488cc, 0.06)
-        .setDepth(1)
-        .setVisible(false);
-      this.slotIndicators.push(ind);
-    });
+      const isCollected = this.collected.includes(ev.id);
+      const typeColor   = isCollected ? (TYPE_COLORS[ev.type] || 0x888888) : 0x333344;
+      const fillColor   = isCollected ? 0x0f1428 : 0x080c18;
 
-    cardOrder.forEach((card, i) => {
-      const cx = this.cardSlots[i].x;
-      const cy = this.cardSlots[i].y;
-      const container = this.add.container(cx, cy).setDepth(2).setSize(cardW, cardH);
+      const container = this.add.container(cx, cy).setDepth(5).setSize(cardW, cardH);
 
-      // Card background
-      const cardBg = this.add.rectangle(0, 0, cardW, cardH, 0x0f1428, 0.92)
-        .setStrokeStyle(2, card.color, 1);
+      const cardBg = this.add.rectangle(0, 0, cardW, cardH, fillColor, 0.95)
+        .setStrokeStyle(2, typeColor, isCollected ? 1 : 0.4);
       container.add(cardBg);
 
-      // Type color strip
-      const strip = this.add.rectangle(0, -cardH / 2 + 14, cardW - 28, 14, card.color, 1)
-        .setOrigin(0.5, 0);
-      container.add(strip);
+      container.add(
+        this.add.rectangle(0, -cardH / 2 + 10, cardW - 20, 8, typeColor, isCollected ? 1 : 0.3)
+          .setOrigin(0.5, 0)
+      );
 
-      // Type label
-      const typeLabel = { analysis: '分析', reframe: '重構', resonance: '共情' }[card.type];
-      const typeText = this.add.text(0, -cardH / 2 + 42, typeLabel, {
-        fontFamily: '"Microsoft JhengHei", sans-serif',
-        fontSize: '22px', color: '#8899aa'
-      }).setOrigin(0.5, 0);
-      container.add(typeText);
+      if (isCollected) {
+        container.add(this.add.text(0, -cardH / 2 + 30, TYPE_LABELS[ev.type] || '', {
+          fontFamily: '"Microsoft JhengHei", sans-serif',
+          fontSize: '20px', color: '#8899aa'
+        }).setOrigin(0.5, 0));
 
-      // Card name
-      const nameText = this.add.text(0, -36, card.name, {
-        fontFamily: '"Microsoft JhengHei", sans-serif',
-        fontSize: '32px', color: '#e0e0e0', fontStyle: 'bold'
-      }).setOrigin(0.5);
-      container.add(nameText);
+        container.add(this.add.text(0, -30, ev.name, {
+          fontFamily: '"Microsoft JhengHei", sans-serif',
+          fontSize: '32px', color: '#e8f0ff', fontStyle: 'bold'
+        }).setOrigin(0.5));
 
-      // Description
-      const descText = this.add.text(0, 28, card.desc, {
-        fontFamily: '"Microsoft JhengHei", sans-serif',
-        fontSize: '22px', color: '#7799aa',
-        wordWrap: { width: cardW - 44 }, align: 'center'
-      }).setOrigin(0.5, 0);
-      container.add(descText);
+        container.add(this.add.text(0, 40, ev.desc, {
+          fontFamily: '"Microsoft JhengHei", sans-serif',
+          fontSize: '19px', color: '#7799aa',
+          wordWrap: { width: cardW - 40 }, align: 'center'
+        }).setOrigin(0.5, 0));
 
-      // Enable dragging
-      container.setInteractive({ draggable: true, useHandCursor: true });
-      this.input.setDraggable(container);
+        container.setInteractive(
+          new Phaser.Geom.Rectangle(-cardW / 2, -cardH / 2, cardW, cardH),
+          Phaser.Geom.Rectangle.Contains
+        );
+        container.on('pointerover', () => {
+          this.tweens.add({ targets: container, scale: 1.04, y: cy - 8, duration: 120, ease: 'Sine.easeOut' });
+          cardBg.setStrokeStyle(3, typeColor, 1);
+        });
+        container.on('pointerout', () => {
+          this.tweens.add({ targets: container, scale: 1, y: cy, duration: 120, ease: 'Sine.easeOut' });
+          cardBg.setStrokeStyle(2, typeColor, 1);
+        });
+      } else {
+        container.add(this.add.rectangle(0, 0, cardW, cardH, 0x000000, 0.5));
+        container.add(this.add.text(0, -10, '🔒', { fontSize: '44px' }).setOrigin(0.5));
+        container.add(this.add.text(0, 50, '尚未收集', {
+          fontFamily: '"Microsoft JhengHei", sans-serif',
+          fontSize: '22px', color: '#334455'
+        }).setOrigin(0.5));
+      }
 
-      // Hover effects
-      container.on('pointerover', () => {
-        if (this.dragIndex >= 0) return; // skip hover while dragging
-        this.tweens.add({ targets: container, scale: 1.07, y: cy - 10, duration: 150, ease: 'Sine.easeOut' });
-        cardBg.setStrokeStyle(3, 0xffffff, 0.8);
-      });
-      container.on('pointerout', () => {
-        if (this.dragIndex >= 0) return;
-        this.tweens.add({ targets: container, scale: 1, y: cy, duration: 150, ease: 'Sine.easeOut' });
-        cardBg.setStrokeStyle(2, card.color, 1);
-      });
-
-      // Entrance animation
-      container.setAlpha(0).setScale(0.85);
-      this.tweens.add({
-        targets: container, alpha: 1, scale: 1,
-        duration: 350, delay: i * 80, ease: 'Back.easeOut'
-      });
-
-      this.cardContainers.push(container);
+      container.setAlpha(0).setScale(0.88);
+      this.tweens.add({ targets: container, alpha: 1, scale: 1, duration: 320, delay: i * 60, ease: 'Back.easeOut' });
     });
   }
 
   createButton(x, y, label, callback) {
     const btn = this.add.container(x, y).setDepth(5);
-    const bg = this.add.rectangle(0, 0, 324, 80, 0x1a3a5c, 0.9)
-      .setStrokeStyle(1, 0x4488cc, 0.5)
+    const bg  = this.add.rectangle(0, 0, 320, 72, 0x1a3a5c, 0.9)
+      .setStrokeStyle(1, 0x4488cc, 0.6)
       .setInteractive({ useHandCursor: true });
-    const text = this.add.text(0, 0, label, {
+    const txt = this.add.text(0, 0, label, {
       fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '30px', color: '#a0c4ff'
+      fontSize: '28px', color: '#a0c4ff'
     }).setOrigin(0.5);
-    btn.add([bg, text]);
-
-    bg.on('pointerover', () => {
-      this.tweens.add({ targets: btn, scale: 1.06, duration: 120, ease: 'Sine.easeOut' });
-      bg.setFillStyle(0x264d73, 1);
-    });
-    bg.on('pointerout', () => {
-      this.tweens.add({ targets: btn, scale: 1, duration: 120, ease: 'Sine.easeOut' });
-      bg.setFillStyle(0x1a3a5c, 0.9);
-    });
-    bg.on('pointerdown', () => {
-      this.tweens.add({
-        targets: btn, scale: 0.94, duration: 80, yoyo: true, ease: 'Sine.easeInOut',
-        onComplete: callback
-      });
-    });
+    btn.add([bg, txt]);
+    bg.on('pointerover', () => { bg.setFillStyle(0x264d73, 1); this.tweens.add({ targets: btn, scale: 1.05, duration: 100 }); });
+    bg.on('pointerout',  () => { bg.setFillStyle(0x1a3a5c, 0.9); this.tweens.add({ targets: btn, scale: 1, duration: 100 }); });
+    bg.on('pointerdown', () => callback());
     return btn;
   }
 }
 
-// ---- Phaser config ----
 const config = {
   type: Phaser.AUTO,
   width: 1920,
   height: 1080,
   parent: document.body,
   backgroundColor: '#000000',
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  },
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [PrepareScene]
 };
 
-const game = new Phaser.Game(config);
+new Phaser.Game(config);
 </script>
 </body>
 </html>

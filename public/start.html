@@ -6,12 +6,22 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html, body {
+    html {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+    body {
       width: 1920px;
       height: 1080px;
       overflow: hidden;
       font-family: "Microsoft JhengHei", sans-serif;
       color: #e0e0e0;
+      flex-shrink: 0;
+      position: relative;
     }
 
     /* Background video — fills the fixed 1920×1080 canvas */
@@ -115,8 +125,8 @@
 </head>
 <body>
 
-  <!-- Background video: autoplay, muted (required for autoplay), loops -->
-  <video id="bg-video" autoplay muted loop playsinline>
+  <!-- Background video: play intro once, then loop the idle video -->
+  <video id="bg-video" autoplay muted playsinline>
     <source src="assets/background/landing.mp4" type="video/mp4">
   </video>
 
@@ -154,17 +164,104 @@
     <div id="toast">連結已複製到剪貼簿！</div>
   </div>
 
+  <!-- BGM audio -->
+  <audio id="bgm-audio" src="assets/music/start.mp3" preload="auto"></audio>
+
   <script>
-    const video = document.getElementById('bg-video');
+    // Switch from intro to looping idle video when intro finishes
+    const bgVideo = document.getElementById('bg-video');
+    bgVideo.addEventListener('ended', () => {
+      bgVideo.src = 'assets/background/landing2.mp4';
+      bgVideo.loop = true;
+      bgVideo.play();
+    });
+
     const musicIcon = document.getElementById('music-icon');
     const musicLabel = document.getElementById('music-label');
-    let musicOn = false;
+    const bgmAudio = document.getElementById('bgm-audio');
+    const TARGET_VOL = 0.35;
+    let bgmPlaying = true;   // on by default
+    let fadeTimer = null;
+    let loopFading = false;
+    let startedByInteraction = false;
+
+    // Update button to reflect "on" state immediately
+    musicIcon.textContent = '🔊';
+    musicLabel.textContent = '關閉音樂';
+
+    function clearFade() {
+      if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
+    }
+
+    function fadeTo(target, durationMs, onComplete) {
+      clearFade();
+      const steps = 40;
+      const stepTime = durationMs / steps;
+      const from = bgmAudio.volume;
+      const delta = (target - from) / steps;
+      let step = 0;
+      fadeTimer = setInterval(() => {
+        step++;
+        bgmAudio.volume = Math.max(0, Math.min(1, from + delta * step));
+        if (step >= steps) {
+          bgmAudio.volume = target;
+          clearFade();
+          if (onComplete) onComplete();
+        }
+      }, stepTime);
+    }
+
+    function startBgm() {
+      if (!bgmPlaying || bgmAudio.paused === false) return;
+      loopFading = false;
+      bgmAudio.currentTime = 0;
+      bgmAudio.volume = 0;
+      bgmAudio.play().catch(() => {
+        // Autoplay blocked — will retry on first user interaction
+      });
+      fadeTo(TARGET_VOL, 1500);
+    }
+
+    // Try autoplay immediately (works if navigated from another page)
+    startBgm();
+
+    // Fallback: start on first user interaction if autoplay was blocked
+    function onFirstInteraction() {
+      if (startedByInteraction) return;
+      startedByInteraction = true;
+      if (bgmPlaying && bgmAudio.paused) startBgm();
+      document.removeEventListener('pointerdown', onFirstInteraction);
+      document.removeEventListener('keydown', onFirstInteraction);
+    }
+    document.addEventListener('pointerdown', onFirstInteraction);
+    document.addEventListener('keydown', onFirstInteraction);
+
+    bgmAudio.addEventListener('timeupdate', () => {
+      if (!bgmPlaying || loopFading || !bgmAudio.duration) return;
+      if (bgmAudio.currentTime >= bgmAudio.duration - 1.5) {
+        loopFading = true;
+        fadeTo(0, 1400);
+      }
+    });
+
+    bgmAudio.addEventListener('ended', () => {
+      if (!bgmPlaying) return;
+      loopFading = false;
+      bgmAudio.currentTime = 0;
+      bgmAudio.volume = 0;
+      bgmAudio.play().catch(() => {});
+      fadeTo(TARGET_VOL, 1500);
+    });
 
     function toggleMusic() {
-      musicOn = !musicOn;
-      video.muted = !musicOn;
-      musicIcon.textContent = musicOn ? '🔊' : '🔇';
-      musicLabel.textContent = musicOn ? '關閉音樂' : '開啟音樂';
+      bgmPlaying = !bgmPlaying;
+      musicIcon.textContent = bgmPlaying ? '🔊' : '🔇';
+      musicLabel.textContent = bgmPlaying ? '關閉音樂' : '開啟音樂';
+      if (bgmPlaying) {
+        startBgm();
+      } else {
+        fadeTo(0, 800, () => bgmAudio.pause());
+      }
     }
 
     function shareLink() {

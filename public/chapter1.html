@@ -56,7 +56,7 @@ const DIALOGUE = [
   // === Mother enters ===
   { speaker: '', text: '話音剛落，原本緊閉着的門被從外打開。' },
   { speaker: '', text: '見此情形，摩耳菲婭怕被發現，便消失了。' },
-  { speaker: '媽媽', text: '莊子傑，你不好好學習在這裡自言自語甚麼呢！' },
+  { speaker: '媽媽', text: '莊子傑，你不好好學習在這裡自言自語甚麼呢！', bg: 'ch1_2' },
   { speaker: '', text: '【我】被嚇到了，本能的往後靠。' },
   { speaker: '', text: '由於真正的莊子傑處於靈魂狀態，所以那名女性無法看見他。' },
   { speaker: '子傑', text: '（靠過來我耳邊）這是我的媽媽。' },
@@ -87,7 +87,7 @@ const DIALOGUE = [
 
   // === Night falls, go to school ===
   { speaker: '', text: '夜色落幕。' },
-  { speaker: '摩耳菲婭', text: '哎呀，天已經這麼晚了，我們還是盡早休息吧。' },
+  { speaker: '摩耳菲婭', text: '哎呀，天已經這麼晚了，我們還是盡早休息吧。' , bg: 'ch1_5'},
   { speaker: '子傑', text: '對，你早點睡吧，明天還要上學呢，我不想看到因為遲到被學校記缺點。' },
   { speaker: '', text: '被兩位催着上床睡覺了。', blackout: true },
 
@@ -99,8 +99,8 @@ const DIALOGUE = [
   { speaker: '', text: '媽媽思考了一會兒。' },
   { speaker: '媽媽', text: '嗯…我試一下…' },
 
-  { speaker: '', text: '天一亮便起床上學了。', blackout: false, bg: 'ch1_2' },
-  { speaker: '', text: '在莊子傑的帶領下來到了學校。' },
+  { speaker: '', text: '天一亮便起床上學了。', blackout: false,  },
+  { speaker: '', text: '在莊子傑的帶領下來到了學校。' , bg: 'ch1_3' },
   { speaker: '', text: '坐到了莊子傑的座位上，他的座位在教室角落。' },
   { speaker: '', text: '瞥見子傑座位的抽屜裡塞滿了書本和筆記。' },
   { speaker: '我', text: '子傑，你平時上學都把這麼多東西放抽屜裡嗎？' },
@@ -134,7 +134,7 @@ const DIALOGUE = [
   { speaker: '', text: '四周開始變得漆黑。', blackout: true },
 
   // === Waking up — scolded by teacher ===
-  { speaker: '', text: '只聽到一聲訓罵：「莊子傑！」', blackout: false, bg: 'ch1_2' },
+  { speaker: '', text: '只聽到一聲訓罵：「莊子傑！」', blackout: false, },
   { speaker: '', text: '我從那場【夢】中醒來，才反應過來還在課堂時間。' },
   { speaker: '老師', text: '你能不能認真上課，本來考試成績已經不好了，現在還要上課睡覺？' },
   { speaker: '', text: '老師開始了對子傑的訓導。' },
@@ -171,22 +171,22 @@ const DIALOGUE = [
   { speaker: '我', text: '那我們快去找吧。' },
 
   // === Evidence 1: Math notebook ===
-  { speaker: '', text: '首先，我們來到莊子傑的課桌，開始尋找反駁他的證據。' },
-  { speaker: '', text: '【證據1】寫滿公式的數學筆記本（認知重組） — 子傑的筆記本，上面記載了許多數學公式以及技巧，足以體現他對於學習的熱誠。', evidence: true },
+  { speaker: '', text: '首先，我們來到莊子傑的課桌，開始尋找反駁他的證據。', bg: 'ch1_3' },
+  { speaker: '', text: '【證據1】寫滿公式的數學筆記本（認知重組） — 子傑的筆記本，上面記載了許多數學公式以及技巧，足以體現他對於學習的熱誠。', evidence: true, evidenceId: 'ev_math_notebook', autoCollect: false },
   { speaker: '我', text: '原來子傑這麼努力學習的，還記了這麼多筆記。' },
 
   // === Evidence 2: Drawer full of textbooks ===
-  { speaker: '', text: '【證據2】塞滿課本的抽屜（認知重組） — 被子傑精心安排過的課本排列方式，體現其對於上課與學習的熱情。', evidence: true },
+  { speaker: '', text: '【證據2】塞滿課本的抽屜（認知重組） — 被子傑精心安排過的課本排列方式，體現其對於上課與學習的熱情。', evidence: true, evidenceId: 'ev_drawer', autoCollect: false },
   { speaker: '', text: '課本排列整齊，似乎被子傑精心安排過，一點也不雜亂，看來子傑對於學習還是很有熱情的。' },
 
   // === Evidence 3: Study plan ===
-  { speaker: '', text: '【證據3】學習進度表（行為活化） — 體現子傑對於學習的規劃。', evidence: true },
+  { speaker: '', text: '【證據3】學習進度表（行為活化） — 體現子傑對於學習的規劃。', evidence: true, evidenceId: 'ev_study_plan', autoCollect: false },
   { speaker: '我', text: '原來子傑一直都在注意自己的學習進度，真是太有毅力了。' },
 
   // === Go home for more evidence ===
-  { speaker: '摩耳菲婭', text: '除了來自學校的壓力外，還有來自家中的壓力，我想我們還可以回一趟家看看有沒有能應對的東西。', bg: 'ch1_1' },
+  { speaker: '摩耳菲婭', text: '除了來自學校的壓力外，還有來自家中的壓力，我想我們還可以回一趟家看看有沒有能應對的東西。' },
   { speaker: '我', text: '那麼我們就回去一趟吧。' },
-  { speaker: '', text: '我們在學校門口遇到一位女孩。' },
+  { speaker: '', text: '我們在學校門口遇到一位女孩。' , bg: 'ch1_4'},
   { speaker: '女同學', text: '子傑，這麼巧啊。' },
   { speaker: '', text: '你的回應是？', choices: ['你是？', '欸？'] },
   { speaker: '女同學', text: '我是你班上的同學啊，你不會認不出我來吧。還是說，是因為你平時太專注於學習，所以沒有留意到我呢？' },
@@ -196,7 +196,7 @@ const DIALOGUE = [
   { speaker: '女同學', text: '或許有可能是因為學習方法的關係？' },
   { speaker: '女同學', text: '我該回家了，再見。' },
   { speaker: '我', text: '再見。' },
-  { speaker: '', text: '【證據4】女同學的話 （行為活化）— 自己每次課間休息都會學習，也提及了子傑可能不適合目前這個學習方法。', evidence: true },
+  { speaker: '', text: '【證據4】女同學的話 （行為活化）— 自己每次課間休息都會學習，也提及了子傑可能不適合目前這個學習方法。', evidence: true, evidenceId: 'ev_classmate_words', autoCollect: true },
 
   // === Home — confronting mother ===
   { speaker: '', text: '回到家中。', bg: 'ch1_1' },
@@ -212,7 +212,7 @@ const DIALOGUE = [
   { speaker: '媽媽', text: '欸？你怎麼這樣想？媽媽在意你是肯定的啊，我可是十月懷胎才生下你的，說不在意你是不可能的。媽媽只是希望你能夠有能力過好自己的生活，條件好點，不用像我一樣。' },
   { speaker: '媽媽', text: '如果不是你說，我也不知道自己無意中給了這麼多壓力你。所以謝謝你和我說這些。' },
   { speaker: '媽媽', text: '這個模型就送給你吧，就當作是給你的獎勵。' },
-  { speaker: '', text: '【證據5】（減少對他人的誤解）媽媽贈送的模型 — 用禮物盒裝起來的玩具模型，是子傑喜歡的暴龍，小巧而精緻。', evidence: true },
+  { speaker: '', text: '【證據5】（減少對他人的誤解）媽媽贈送的模型 — 用禮物盒裝起來的玩具模型，是子傑喜歡的暴龍，小巧而精緻。', evidence: true, evidenceId: 'ev_dinosaur_model', autoCollect: true },
   { speaker: '', text: '媽媽給了一個擁抱。' },
   { speaker: '媽媽', text: '我要去做兼職了，你晚飯自己解決。' },
   { speaker: '', text: '說罷，媽媽離開家上班去了。' },
@@ -220,7 +220,7 @@ const DIALOGUE = [
   { speaker: '', text: '看到帳本數目增加了幾次後，最後有幾筆大支出把一大半存款掏空了。' },
   { speaker: '', text: '這時我才理解到媽媽剛才的話是什麼意思。' },
   { speaker: '', text: '「媽媽只是希望你能夠有能力過好自己的生活，條件好點，不用像我一樣。」' },
-  { speaker: '', text: '【證據6】（蘇格拉底式提問）媽媽的帳本 — 存款增加了好幾次但數目不多，最後幾筆大支出（水費、電費、煤氣、學費等）把一大半存款掏空了。媽媽真的對待子傑很差嗎？', evidence: true },
+  { speaker: '', text: '【證據6】（蘇格拉底式提問）媽媽的帳本 — 存款增加了好幾次但數目不多，最後幾筆大支出（水費、電費、煤氣、學費等）把一大半存款掏空了。媽媽真的對待子傑很差嗎？', evidence: true, evidenceId: 'ev_account_book', autoCollect: false },
 
   // === Return to save the boy ===
   { speaker: '', text: '得知這一切之後的我心情很沈重，既知道子傑努力學習但表現不佳且背負著重大壓力，又知道媽媽在背後對子傑的感情以及負擔。' },
@@ -268,7 +268,24 @@ async function loadProgress() {
   return null;
 }
 
-// ---- Phaser scene ----
+// ---- Evidence definitions ----
+const ALL_EVIDENCE = [
+  { id: 'ev_math_notebook',   name: '數學筆記本',     type: 'cognitive_restructure',   desc: '寫滿公式的數學筆記本，體現子傑對學習的熱誠。' },
+  { id: 'ev_drawer',          name: '整齊的抽屜',     type: 'cognitive_restructure',   desc: '精心安排的課本排列，體現對上課的熱情。' },
+  { id: 'ev_study_plan',      name: '學習進度表',     type: 'behavioral_activation',   desc: '子傑用來規劃學習的進度表。' },
+  { id: 'ev_classmate_words', name: '女同學的話',     type: 'behavioral_activation',   desc: '女同學觀察到子傑每次課間都在學習。' },
+  { id: 'ev_dinosaur_model',  name: '媽媽送的暴龍模型', type: 'reduce_misunderstanding', desc: '媽媽送給子傑的禮物，小巧精緻的暴龍模型。' },
+  { id: 'ev_account_book',    name: '媽媽的帳本',     type: 'socratic_questioning',    desc: '記錄媽媽辛苦存款、大支出掏空積蓄的帳本。' }
+];
+
+// Placeholder hotzone coordinates — adjust these values manually as needed
+const HOTZONE_COORDS = {
+  ev_math_notebook: { x: 960, y: 400, w: 200, h: 160 },
+  ev_drawer:        { x: 760, y: 500, w: 200, h: 120 },
+  ev_study_plan:    { x: 1100, y: 380, w: 180, h: 140 },
+  ev_account_book:  { x: 850,  y: 460, w: 220, h: 140 }
+};
+
 class Chapter1Scene extends Phaser.Scene {
   constructor() {
     super('Chapter1Scene');
@@ -276,6 +293,27 @@ class Chapter1Scene extends Phaser.Scene {
     this.isTyping = false;
     this.typeTimer = null;
     this.choiceMode = false;
+    this.autoplay = false;
+    this.autoplayTimer = null;
+    // Evidence system state
+    this.collectedEvidence = [];
+    this.collecting = false;
+    this.activeHotzone = null;
+    this.activeHotzoneGlow = null;
+    this.popupObjects = [];
+    this.logPanel = null;
+    this.logPanelVisible = false;
+    // Resonance Shard state
+    this.shardSpawned = false;        // only one shard per chapter
+    this.shardCollected = false;
+    this.shardObject = null;
+    this.shardData = null;            // { inscription, creatorName } fetched from server
+    this.shardSpawnTimer = null;
+    this.shardDriftTween = null;
+    // Multi-hotzone state
+    this.pendingMultiHotzones = new Set();
+    this.multiHotzoneGlows = {};
+    this.multiHotzoneSkip = 0;
   }
 
   preload() {
@@ -283,7 +321,16 @@ class Chapter1Scene extends Phaser.Scene {
     this.load.image('ch1_1', 'assets/illustration_draft/chapter1/chapter1.1.png');
     this.load.image('ch1_2', 'assets/illustration_draft/chapter1/chapter1.2.png');
     this.load.image('ch1_3', 'assets/illustration_draft/chapter1/chapter1.3.png');
+    this.load.image('ch1_4', 'assets/illustration_draft/chapter1/chapter1.4.png');
+    this.load.image('ch1_5', 'assets/illustration_draft/chapter1/chapter1.5.png');
+    this.load.image('choicesBox', 'assets/UI/choices_box.PNG');
     this.load.image('dialogBox', 'assets/UI/dialog_box.PNG');
+    this.load.audio('bgm', 'assets/music/story.mp3');
+    this.load.image('musicBtn', 'assets/buttons/music.png');
+    this.load.image('continueBtn', 'assets/buttons/continue.png');
+    this.load.image('autoplayBtn', 'assets/buttons/autoplay.png');
+    this.load.audio('shardCollect', 'assets/music/shard_collect.mp3');
+    this.load.image('starFragment', 'assets/cards/star_fragment.png');
   }
 
   create() {
@@ -320,20 +367,97 @@ class Chapter1Scene extends Phaser.Scene {
     }).setDepth(11);
 
     // Continue hint
-    this.continueHint = this.add.text(width - 72, height - 32, '▶ 點擊繼續', {
-      fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '25px',
-      color: '#6688aa'
-    }).setOrigin(1, 1).setDepth(11);
+    this.continueHint = this.add.image(width - 10, height - 8, 'continueBtn')
+      .setDisplaySize(220, 80)
+      .setOrigin(1, 1)
+      .setDepth(11)
+      .setVisible(false);
 
     // Evidence flash overlay (gold tint for evidence lines)
     this.evidenceFlash = this.add.rectangle(width / 2, boxY + boxH / 2, width, boxH, 0xffcc00, 0).setDepth(9);
 
     this.choiceButtons = [];
 
+    // Autoplay toggle button (top-right) — image button
+    this.autoplayImg = this.add.image(width - 10, 8, 'autoplayBtn')
+      .setDisplaySize(220, 80)
+      .setOrigin(1, 0)
+      .setDepth(11)
+      .setInteractive({ useHandCursor: true });
+    this.autoplayImg.on('pointerdown', () => this.toggleAutoplay());
+    this.autoplayImg.on('pointerover', () => this.autoplayImg.setTint(0xaad4ff));
+    this.autoplayImg.on('pointerout', () => this.autoplayImg.clearTint());
+
     // --- Input ---
-    this.input.on('pointerdown', () => this.advance());
+    // Scene-level pointerdown: check shard collection FIRST (avoids hit-test lag on moving container)
+    this.input.on('pointerdown', (pointer) => {
+      if (this.shardObject && !this.shardCollected) {
+        const dx = pointer.x - this.shardObject.x;
+        const dy = pointer.y - this.shardObject.y;
+        if (Math.sqrt(dx * dx + dy * dy) < 64) {
+          this.collectShard(this.shardObject);
+          return; // don't also advance dialogue
+        }
+      }
+      this.advance();
+    });
     this.input.keyboard.on('keydown-SPACE', () => this.advance());
+
+    // --- BGM: smooth fade-in and looping ---
+    this.musicOn = true;
+    this.bgmLoopTimer = null;
+    this.bgm = this.sound.add('bgm', { loop: false, volume: 0 });
+    const playBgm = () => {
+      if (!this.musicOn) return;
+      this.bgm.volume = 0;
+      this.bgm.play();
+      this.tweens.add({ targets: this.bgm, volume: 0.35, duration: 1500, ease: 'Linear' });
+      const fadeMs = 1400;
+      this.bgmLoopTimer = this.time.delayedCall(
+        Math.max(0, this.bgm.duration * 1000 - fadeMs), () => {
+          this.tweens.killTweensOf(this.bgm);
+          this.tweens.add({ targets: this.bgm, volume: 0, duration: fadeMs, ease: 'Linear' });
+        });
+    };
+    this.bgm.on('complete', () => { this.bgmLoopTimer = null; playBgm(); });
+    playBgm();
+
+    // Music toggle button (top-left)
+    this.musicBtn = this.add.image(10, 8, 'musicBtn')
+      .setDisplaySize(70, 70)
+      .setOrigin(0, 0)
+      .setDepth(11)
+      .setInteractive({ useHandCursor: true });
+    this.musicBtn.on('pointerdown', () => this.toggleMusic());
+    this.musicBtn.on('pointerover', () => this.musicBtn.setTint(0xaad4ff));
+    this.musicBtn.on('pointerout', () => this.musicBtn.clearTint());
+
+    // --- Evidence counter (top-left, below music button) ---
+    this.evidenceCounterBg = this.add.rectangle(88, 88, 160, 44, 0x0a1020, 0.85)
+      .setStrokeStyle(1, 0x4488cc, 0.6)
+      .setOrigin(0.5)
+      .setDepth(11)
+      .setInteractive({ useHandCursor: true });
+    this.evidenceCounterText = this.add.text(88, 88, '證據: 0/6', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '24px', color: '#a0c4ff'
+    }).setOrigin(0.5).setDepth(12);
+    this.evidenceCounterBg.on('pointerdown', () => this.toggleLogPanel());
+    this.evidenceCounterBg.on('pointerover', () => this.evidenceCounterBg.setStrokeStyle(2, 0x88ccff, 0.9));
+    this.evidenceCounterBg.on('pointerout', () => this.evidenceCounterBg.setStrokeStyle(1, 0x4488cc, 0.6));
+
+    // --- Resonance Shard counter (top-right) ---
+    this.shardCounterBg = this.add.rectangle(width - 88, 88, 180, 44, 0x0a0a20, 0.85)
+      .setStrokeStyle(1, 0xaa88ff, 0.6)
+      .setOrigin(0.5)
+      .setDepth(11);
+    this.shardCounterText = this.add.text(width - 88, 88, '星魂碎片: 0', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '22px', color: '#cc99ff'
+    }).setOrigin(0.5).setDepth(12);
+
+    // Schedule floating shard spawn (3–8 s after chapter starts)
+    this.scheduleShardSpawn();
 
     // --- Load saved progress or start from beginning ---
     loadProgress().then(savedIndex => {
@@ -350,6 +474,193 @@ class Chapter1Scene extends Phaser.Scene {
     });
   }
 
+  // ============================================================
+  // Resonance Shard system
+  // ============================================================
+
+  // ---- Schedule one shard spawn per chapter ----
+  scheduleShardSpawn() {
+    if (this.shardSpawned) return;
+    const delayMs = Phaser.Math.Between(3000, 8000);
+    this.shardSpawnTimer = this.time.delayedCall(delayMs, () => {
+      this.fetchAndSpawnShard();
+    });
+  }
+
+  // ---- Fetch a random public shard from server then spawn it ----
+  fetchAndSpawnShard() {
+    if (this.shardSpawned || this.shardCollected) return;
+    const username = getUsername() || '';
+    fetch(`/api/fragments/random?username=${encodeURIComponent(username)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.found) {
+          this.shardData = { inscription: data.shard.inscription, creatorName: data.shard.creatorName };
+        } else {
+          // No public shards yet — use a placeholder so the shard still appears
+          this.shardData = { inscription: '希望 堅持 會好的', creatorName: '旅行者' };
+        }
+        this.spawnFloatingShard();
+      })
+      .catch(() => {
+        this.shardData = { inscription: '希望 堅持 會好的', creatorName: '旅行者' };
+        this.spawnFloatingShard();
+      });
+  }
+
+  // ---- Spawn the floating shard object ----
+  spawnFloatingShard() {
+    if (this.shardSpawned) return;
+    this.shardSpawned = true;
+
+    const { width, height } = this.scale;
+    const startX = width + 80;
+    const baseY  = Phaser.Math.Between(200, height - 400);
+
+    // Container (no setInteractive — hit-testing is done via pointer distance in scene handler)
+    const shard = this.add.container(startX, baseY).setDepth(18).setSize(110, 110);
+
+    // Crystal image — pure image, no label
+    const img = this.add.image(0, 0, 'starFragment').setDisplaySize(100, 100);
+    shard.add(img);
+
+    // Cursor-hint: show pointer cursor when hovering near (handled via the scene pointer-move)
+    this.input.on('pointermove', (pointer) => {
+      if (!this.shardObject || this.shardCollected) return;
+      const dx = pointer.x - this.shardObject.x;
+      const dy = pointer.y - this.shardObject.y;
+      this.game.canvas.style.cursor = (Math.sqrt(dx*dx + dy*dy) < 64) ? 'pointer' : '';
+    });
+
+    // Pulse alpha
+    this.tweens.add({
+      targets: shard, alpha: { from: 0.65, to: 1 },
+      duration: 950, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+    });
+
+    // Gentle random rotation sway
+    this.tweens.add({
+      targets: shard,
+      angle: { from: Phaser.Math.Between(-10, -3), to: Phaser.Math.Between(3, 10) },
+      duration: Phaser.Math.Between(1100, 1700),
+      yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+    });
+
+    // X drift: linear right → left over 10 s
+    this.shardDriftTween = this.tweens.add({
+      targets: shard,
+      x: -80, duration: 10000, ease: 'Linear',
+      onComplete: () => {
+        shard.destroy();
+        this.shardObject = null;
+        this.game.canvas.style.cursor = '';
+      }
+    });
+
+    // Y random bobbing: chain short random-target tweens for unpredictable up/down drift
+    const bobY = () => {
+      if (!shard.active) return;
+      const targetY = Phaser.Math.Clamp(
+        baseY + Phaser.Math.Between(-130, 130),
+        120, height - 280
+      );
+      this.tweens.add({
+        targets: shard,
+        y: targetY,
+        duration: Phaser.Math.Between(700, 1600),
+        ease: 'Sine.easeInOut',
+        onComplete: bobY
+      });
+    };
+    bobY();
+
+    this.shardObject = shard;
+  }
+
+  // ---- Player clicks the shard ----
+  collectShard(shardObj) {
+    if (this.shardCollected) return;
+    this.shardCollected = true;
+    this.game.canvas.style.cursor = '';
+
+    // Stop drift and bobbing
+    if (this.shardDriftTween) { this.shardDriftTween.stop(); this.shardDriftTween = null; }
+    this.tweens.killTweensOf(shardObj);
+
+    const { width } = this.scale;
+    // Fly to the shard counter (top-right corner)
+    this.tweens.add({
+      targets: shardObj,
+      x: width - 88, y: 88, scale: 0.3, alpha: 0,
+      duration: 600, ease: 'Cubic.easeIn',
+      onComplete: () => {
+        shardObj.destroy();
+        this.shardObject = null;
+        this.onShardArrived();
+      }
+    });
+
+    // Particle burst (simple circles)
+    this.spawnShardParticles(shardObj.x, shardObj.y);
+
+    // Collected sound (graceful fallback if audio not loaded)
+    try {
+      const sfx = this.sound.get('shardCollect');
+      if (sfx) sfx.play({ volume: 0.6 });
+      else if (this.sound.context) {
+        const snd = this.sound.add('shardCollect', { volume: 0.6 });
+        snd.play();
+      }
+    } catch (_) {}
+  }
+
+  // ---- Called after shard flies to counter ----
+  onShardArrived() {
+    // Update counter
+    this.shardCounterText.setText('星魂碎片: 1');
+    this.tweens.add({ targets: this.shardCounterBg, scaleX: 1.15, scaleY: 1.15, duration: 200, yoyo: true });
+    this.tweens.add({ targets: this.shardCounterText, alpha: { from: 0.4, to: 1 }, duration: 300 });
+
+    // Persist shard data in localStorage so duel can use it
+    if (this.shardData) {
+      localStorage.setItem('collectedShard', JSON.stringify(this.shardData));
+    }
+
+    // Record collection on server (fire and forget)
+    const username = getUsername();
+    if (username && this.shardData) {
+      fetch('/api/fragments/collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          inscription: this.shardData.inscription,
+          creatorName: this.shardData.creatorName,
+          chapter: 1
+        })
+      }).catch(() => {});
+    }
+  }
+
+  // ---- Simple particle burst on collection ----
+  spawnShardParticles(x, y) {
+    for (let i = 0; i < 10; i++) {
+      const p = this.add.circle(x, y, Phaser.Math.Between(4, 10), 0xcc99ff, 1).setDepth(19);
+      const angle = Math.random() * Math.PI * 2;
+      const dist  = Phaser.Math.Between(40, 120);
+      this.tweens.add({
+        targets: p,
+        x: x + Math.cos(angle) * dist,
+        y: y + Math.sin(angle) * dist,
+        alpha: 0, scale: 0.2,
+        duration: Phaser.Math.Between(400, 800),
+        ease: 'Sine.easeOut',
+        onComplete: () => p.destroy()
+      });
+    }
+  }
+
+  // ============================================================
   fitBackground(img) {
     const { width, height } = this.scale;
     const scale = Math.max(width / img.width, height / img.height);
@@ -392,7 +703,9 @@ class Chapter1Scene extends Phaser.Scene {
 
     // Typewriter
     this.dialogueText.setText('');
-    this.continueHint.setVisible(false);
+    this.continueHint.setVisible(false).disableInteractive();
+    this.continueHint.removeAllListeners('pointerover');
+    this.continueHint.removeAllListeners('pointerout');
     this.isTyping = true;
     let charIndex = 0;
     const fullText = entry.text;
@@ -413,12 +726,32 @@ class Chapter1Scene extends Phaser.Scene {
   }
 
   onLineComplete(entry) {
+    // Handle multi-hotzone (several evidence items shown simultaneously)
+    if (entry.multiHotzone && entry.multiHotzone.length > 0) {
+      this.activateMultiHotzones(entry.multiHotzone, entry.multiHotzoneSkip || 0);
+      return;
+    }
+    // Handle evidence collection before choice/continue logic
+    if (entry.evidence && entry.evidenceId) {
+      if (entry.autoCollect) {
+        // Auto-collect immediately
+        this.collectEvidence(entry.evidenceId);
+        return; // popup will resume flow
+      } else {
+        // Activate a hotzone for click-to-collect
+        this.activateHotzone(entry.evidenceId);
+        return; // hotzone click will resume flow after popup
+      }
+    }
+
     if (entry.choices) {
       this.showChoices(entry.choices);
     } else if (entry.end) {
-      this.continueHint.setText('▶ 前往準備界面').setVisible(true);
-      this.continueHint.setInteractive({ useHandCursor: true });
+      this.continueHint.setVisible(true).setInteractive({ useHandCursor: true });
+      this.continueHint.on('pointerover', () => this.continueHint.setTint(0xaad4ff));
+      this.continueHint.on('pointerout', () => this.continueHint.clearTint());
       this.continueHint.once('pointerdown', () => {
+        localStorage.setItem('collectedEvidence', JSON.stringify(this.collectedEvidence));
         const username = getUsername();
         if (username) {
           fetch('/api/progress/save', {
@@ -431,30 +764,337 @@ class Chapter1Scene extends Phaser.Scene {
         }
       });
     } else {
-      this.continueHint.setText('▶ 點擊繼續').setVisible(true);
+      this.continueHint.setVisible(true).setInteractive({ useHandCursor: true });
+      this.continueHint.on('pointerover', () => this.continueHint.setTint(0xaad4ff));
+      this.continueHint.on('pointerout', () => this.continueHint.clearTint());
+      if (this.autoplay) this.scheduleAutoAdvance();
     }
   }
 
+  // ---- Activate multiple hotzones simultaneously ----
+  activateMultiHotzones(ids, skipCount) {
+    this.collecting = true;  // block advance until all collected
+    this.pendingMultiHotzones = new Set(ids);
+    this.multiHotzoneSkip = skipCount;
+    this.multiHotzoneGlows = {};
+    this.continueHint.setVisible(false).disableInteractive();
+
+    ids.forEach(evidenceId => {
+      const coords = HOTZONE_COORDS[evidenceId];
+      if (!coords) return;
+      const evDef = ALL_EVIDENCE.find(e => e.id === evidenceId);
+      const name = evDef ? evDef.name : evidenceId;
+
+      // Pulsing gold outline
+      const glow = this.add.rectangle(coords.x, coords.y, coords.w, coords.h)
+        .setStrokeStyle(3, 0xffcc00, 0.7)
+        .setFillStyle(0xffcc00, 0.08)
+        .setDepth(15);
+      this.tweens.add({
+        targets: glow, alpha: { from: 0.5, to: 1 },
+        duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+      });
+
+      // Label floating above the hotzone
+      const label = this.add.text(coords.x, coords.y - coords.h / 2 - 12, name, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '22px', color: '#ffee44',
+        stroke: '#000000', strokeThickness: 4
+      }).setOrigin(0.5, 1).setDepth(16);
+
+      // Invisible interactive zone
+      const zone = this.add.zone(coords.x, coords.y, coords.w, coords.h)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(17);
+      zone.once('pointerdown', () => this.onMultiHotzoneClick(evidenceId));
+
+      this.multiHotzoneGlows[evidenceId] = [glow, label, zone];
+    });
+  }
+
+  // ---- A hotzone in a multi-set was clicked ----
+  onMultiHotzoneClick(evidenceId) {
+    // Remove just this hotzone's visuals
+    const objs = this.multiHotzoneGlows[evidenceId];
+    if (objs) {
+      objs.forEach(obj => { this.tweens.killTweensOf(obj); obj.destroy(); });
+      delete this.multiHotzoneGlows[evidenceId];
+    }
+    this.pendingMultiHotzones.delete(evidenceId);
+    // Show collection popup; resumeAfterCollection decides what to do next
+    this.collectEvidence(evidenceId);
+  }
+
+  // ---- Activate a click-to-collect hotzone ----
+  activateHotzone(evidenceId) {
+    this.deactivateHotzone(); // clear any existing
+    const coords = HOTZONE_COORDS[evidenceId];
+    if (!coords) return;
+
+    // Subtle glow hint
+    this.activeHotzoneGlow = this.add.rectangle(coords.x, coords.y, coords.w, coords.h)
+      .setStrokeStyle(3, 0xffcc00, 0.7)
+      .setFillStyle(0xffcc00, 0.08)
+      .setDepth(15);
+    // Pulse animation
+    this.tweens.add({
+      targets: this.activeHotzoneGlow,
+      alpha: { from: 0.5, to: 1 },
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Invisible interactive zone
+    this.activeHotzone = this.add.zone(coords.x, coords.y, coords.w, coords.h)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(16);
+    this.activeHotzone.once('pointerdown', () => {
+      this.deactivateHotzone();
+      this.collectEvidence(evidenceId);
+    });
+  }
+
+  // ---- Deactivate current hotzone ----
+  deactivateHotzone() {
+    if (this.activeHotzoneGlow) {
+      this.tweens.killTweensOf(this.activeHotzoneGlow);
+      this.activeHotzoneGlow.destroy();
+      this.activeHotzoneGlow = null;
+    }
+    if (this.activeHotzone) {
+      this.activeHotzone.destroy();
+      this.activeHotzone = null;
+    }
+  }
+
+  // ---- Collect an evidence item ----
+  collectEvidence(evidenceId) {
+    if (this.collectedEvidence.includes(evidenceId)) {
+      // Already collected — resume flow
+      this.resumeAfterCollection();
+      return;
+    }
+    this.collectedEvidence.push(evidenceId);
+    this.updateEvidenceCounter();
+    this.collecting = true;
+    this.continueHint.setVisible(false).disableInteractive();
+    this.showCollectionPopup(evidenceId);
+  }
+
+  // ---- Update evidence counter display ----
+  updateEvidenceCounter() {
+    this.evidenceCounterText.setText(`證據: ${this.collectedEvidence.length}/6`);
+    // Brief flash
+    this.tweens.add({
+      targets: this.evidenceCounterText,
+      alpha: { from: 0.3, to: 1 },
+      duration: 400,
+      ease: 'Sine.easeOut'
+    });
+    // Refresh log panel if visible
+    if (this.logPanelVisible) {
+      this.buildLogPanel();
+    }
+  }
+
+  // ---- Show collection popup ----
+  showCollectionPopup(evidenceId) {
+    const evDef = ALL_EVIDENCE.find(e => e.id === evidenceId);
+    if (!evDef) { this.closeCollectionPopup(); return; }
+
+    this.clearPopup();
+    const { width, height } = this.scale;
+    const cx = width / 2;
+    const cy = height / 2 - 50;
+
+    // Dim overlay
+    const overlay = this.add.rectangle(cx, height / 2, width, height, 0x000000, 0.55).setDepth(20);
+    this.popupObjects.push(overlay);
+
+    // Popup background
+    const popupBg = this.add.rectangle(cx, cy, 560, 320, 0x0c1628, 0.97)
+      .setStrokeStyle(2, 0xffcc00, 0.9)
+      .setDepth(21);
+    this.popupObjects.push(popupBg);
+
+    // Title: 證據獲得！
+    const titleText = this.add.text(cx, cy - 128, '✦ 證據獲得！✦', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '28px', color: '#ffcc00', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(22);
+    this.popupObjects.push(titleText);
+
+    // Evidence name
+    const nameText = this.add.text(cx, cy - 68, evDef.name, {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '36px', color: '#e8f0ff', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(22);
+    this.popupObjects.push(nameText);
+
+    // CBT type label
+    const typeLabels = {
+      cognitive_restructure: '認知重組',
+      behavioral_activation: '行為活化',
+      reduce_misunderstanding: '減少誤解',
+      socratic_questioning: '蘇格拉底式提問'
+    };
+    const typeText = this.add.text(cx, cy - 18, `【${typeLabels[evDef.type] || evDef.type}】`, {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '24px', color: '#88aacc'
+    }).setOrigin(0.5).setDepth(22);
+    this.popupObjects.push(typeText);
+
+    // Description
+    const descText = this.add.text(cx, cy + 36, evDef.desc, {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '22px', color: '#aabbcc',
+      wordWrap: { width: 500 }, align: 'center'
+    }).setOrigin(0.5, 0).setDepth(22);
+    this.popupObjects.push(descText);
+
+    // Confirm button
+    const btnBg = this.add.rectangle(cx, cy + 132, 200, 56, 0x1a3a5c, 1)
+      .setStrokeStyle(2, 0x4488cc, 0.8)
+      .setDepth(22)
+      .setInteractive({ useHandCursor: true });
+    const btnText = this.add.text(cx, cy + 132, '確認', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '28px', color: '#a0c4ff'
+    }).setOrigin(0.5).setDepth(23);
+    this.popupObjects.push(btnBg, btnText);
+
+    btnBg.on('pointerover', () => btnBg.setFillStyle(0x264d73, 1));
+    btnBg.on('pointerout', () => btnBg.setFillStyle(0x1a3a5c, 1));
+    btnBg.once('pointerdown', () => this.closeCollectionPopup());
+
+    // Entrance tween
+    const allObjs = [popupBg, titleText, nameText, typeText, descText, btnBg, btnText];
+    allObjs.forEach(o => o.setAlpha(0));
+    this.tweens.add({ targets: allObjs, alpha: 1, duration: 300, ease: 'Sine.easeOut' });
+  }
+
+  // ---- Clear popup objects ----
+  clearPopup() {
+    this.popupObjects.forEach(o => o.destroy());
+    this.popupObjects = [];
+  }
+
+  // ---- Close collection popup and resume ----
+  closeCollectionPopup() {
+    this.clearPopup();
+    this.collecting = false;
+    this.resumeAfterCollection();
+  }
+
+  // ---- Resume dialogue flow after collection ----
+  resumeAfterCollection() {
+    // Still have uncollected hotzones in multi-hotzone mode — re-block advance and wait
+    if (this.pendingMultiHotzones.size > 0) {
+      this.collecting = true;
+      return;
+    }
+
+    // All multi-hotzones collected — skip over their individual DIALOGUE entries
+    if (this.multiHotzoneSkip > 0) {
+      this.dialogueIndex += this.multiHotzoneSkip;
+      this.multiHotzoneSkip = 0;
+    }
+
+    const entry = DIALOGUE[this.dialogueIndex];
+    if (!entry) return;
+    // Show continue hint (or choices) now that collection is done
+    if (entry.choices) {
+      this.showChoices(entry.choices);
+    } else if (entry.end) {
+      this.onLineComplete(entry); // re-run to handle end
+    } else {
+      this.continueHint.setVisible(true).setInteractive({ useHandCursor: true });
+      this.continueHint.on('pointerover', () => this.continueHint.setTint(0xaad4ff));
+      this.continueHint.on('pointerout', () => this.continueHint.clearTint());
+      if (this.autoplay) this.scheduleAutoAdvance();
+    }
+  }
+
+  // ---- Toggle evidence log panel ----
+  toggleLogPanel() {
+    this.logPanelVisible = !this.logPanelVisible;
+    if (this.logPanelVisible) {
+      this.buildLogPanel();
+    } else {
+      this.destroyLogPanel();
+    }
+  }
+
+  // ---- Build log panel ----
+  buildLogPanel() {
+    this.destroyLogPanel();
+    const { width } = this.scale;
+    const panelX = 10;
+    const panelY = 118;
+    const panelW = 320;
+    const panelH = 44 + ALL_EVIDENCE.length * 48 + 12;
+    this.logPanel = this.add.container(panelX, panelY).setDepth(30);
+
+    const bg = this.add.rectangle(panelW / 2, panelH / 2, panelW, panelH, 0x050d1a, 0.95)
+      .setStrokeStyle(1, 0x4488cc, 0.6);
+    this.logPanel.add(bg);
+
+    const title = this.add.text(panelW / 2, 14, '收集紀錄', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '22px', color: '#a0c4ff'
+    }).setOrigin(0.5, 0);
+    this.logPanel.add(title);
+
+    ALL_EVIDENCE.forEach((ev, i) => {
+      const collected = this.collectedEvidence.includes(ev.id);
+      const rowY = 52 + i * 48;
+      const label = collected ? ev.name : '???';
+      const color = collected ? '#e8f0ff' : '#445566';
+      const icon = collected ? '✦' : '○';
+      const iconColor = collected ? '#ffcc00' : '#334455';
+      const iconT = this.add.text(18, rowY, icon, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '20px', color: iconColor
+      }).setOrigin(0, 0.5);
+      const nameT = this.add.text(44, rowY, label, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '22px', color
+      }).setOrigin(0, 0.5);
+      this.logPanel.add([iconT, nameT]);
+    });
+  }
+
+  // ---- Destroy log panel ----
+  destroyLogPanel() {
+    if (this.logPanel) { this.logPanel.destroy(); this.logPanel = null; }
+  }
+
+
+
   showChoices(choices) {
     this.choiceMode = true;
-    this.continueHint.setVisible(false);
+    this.continueHint.setVisible(false).disableInteractive();
     const { width, height } = this.scale;
     const boxY = height - 306;
-    const startY = boxY - 70;
+    // Position choices dynamically above the dialog box with a 20px gap
+    const startY = (boxY - 60) - (choices.length - 1) * 90;
 
     choices.forEach((text, i) => {
       const btnX = width / 1.4;
-      const btnY = startY + i * 80;
-      const btnBg = this.add.rectangle(btnX, btnY, 720, 64, 0x1a3a5c, 0.9)
+      const btnY = startY + i * 90;
+      const btnBg = this.add.image(btnX, btnY, 'choicesBox')
+        .setDisplaySize(360, 80)
         .setDepth(12).setInteractive({ useHandCursor: true });
-      const btnText = this.add.text(btnX, btnY, `${i + 1}. ${text}`, {
+      const btnText = this.add.text(btnX, btnY + 10, `${i + 1}. ${text}`, {
         fontFamily: '"Microsoft JhengHei", sans-serif',
         fontSize: '30px',
-        color: '#a0c4ff'
+        color: '#e8f0ff'
       }).setOrigin(0.5).setDepth(13);
 
-      btnBg.on('pointerover', () => btnBg.setFillStyle(0x264d73, 1));
-      btnBg.on('pointerout', () => btnBg.setFillStyle(0x1a3a5c, 0.9));
+      btnBg.on('pointerover', () => btnBg.setTint(0xaad4ff));
+      btnBg.on('pointerout', () => btnBg.clearTint());
       btnBg.on('pointerdown', () => {
         this.clearChoices();
         this.choiceMode = false;
@@ -472,6 +1112,9 @@ class Chapter1Scene extends Phaser.Scene {
 
   advance() {
     if (this.choiceMode) return;
+    if (this.collecting) return;
+
+    if (this.autoplayTimer) { this.autoplayTimer.destroy(); this.autoplayTimer = null; }
 
     if (this.isTyping) {
       if (this.typeTimer) this.typeTimer.destroy();
@@ -488,6 +1131,50 @@ class Chapter1Scene extends Phaser.Scene {
     this.dialogueIndex++;
     if (this.dialogueIndex < DIALOGUE.length) {
       this.showLine();
+    }
+  }
+
+  toggleAutoplay() {
+    this.autoplay = !this.autoplay;
+    this.autoplayImg.setAlpha(this.autoplay ? 1 : 0.45);
+    if (this.autoplay && !this.isTyping && !this.choiceMode) {
+      this.scheduleAutoAdvance();
+    } else if (!this.autoplay && this.autoplayTimer) {
+      this.autoplayTimer.destroy();
+      this.autoplayTimer = null;
+    }
+  }
+
+  scheduleAutoAdvance() {
+    if (this.autoplayTimer) this.autoplayTimer.destroy();
+    this.autoplayTimer = this.time.delayedCall(2000, () => {
+      this.autoplayTimer = null;
+      if (this.autoplay && !this.choiceMode) this.advance();
+    });
+  }
+
+  toggleMusic() {
+    this.musicOn = !this.musicOn;
+    this.musicBtn.setAlpha(this.musicOn ? 1 : 0.4);
+    if (this.musicOn) {
+      if (!this.bgm.isPlaying) {
+        const fadeMs = 1400;
+        this.bgm.volume = 0;
+        this.bgm.play();
+        this.tweens.add({ targets: this.bgm, volume: 0.35, duration: 1500, ease: 'Linear' });
+        this.bgmLoopTimer = this.time.delayedCall(
+          Math.max(0, this.bgm.duration * 1000 - fadeMs), () => {
+            this.tweens.killTweensOf(this.bgm);
+            this.tweens.add({ targets: this.bgm, volume: 0, duration: fadeMs, ease: 'Linear' });
+          });
+      }
+    } else {
+      if (this.bgmLoopTimer) { this.bgmLoopTimer.destroy(); this.bgmLoopTimer = null; }
+      this.tweens.killTweensOf(this.bgm);
+      this.tweens.add({
+        targets: this.bgm, volume: 0, duration: 800, ease: 'Linear',
+        onComplete: () => { if (!this.musicOn) this.bgm.stop(); }
+      });
     }
   }
 }

@@ -2,17 +2,28 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=1920">
   <title>牽星絮語 — 星憶空間</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    html {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #060a14;
+    }
     body {
       font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
-      background: #060a14 url('assets/background/Chatbot.png') center center / cover no-repeat fixed;
+      background: #060a14 url('assets/background/Chatbot.png') center center / cover no-repeat;
       color: #d0d8e8;
-      min-height: 100vh;
+      width: 1920px;
+      height: 1080px;
       overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
     }
 
     /* --- Starfield canvas --- */
@@ -43,19 +54,20 @@
     .choices-area.visible { opacity: 1; }
 
     .choice-btn {
-      padding: 12px 40px;
-      background: rgba(26, 58, 92, 0.85);
-      color: #a0c4ff;
-      border: 1px solid rgba(160, 196, 255, 0.2);
-      border-radius: 8px;
+      height: 72px;
+      padding: 0 44px;
+      background: url('assets/UI/choices_box.PNG') center / 100% 100% no-repeat;
+      color: #e8f0ff;
+      border: none;
       font-size: 1.05rem;
       font-family: inherit;
       cursor: pointer;
-      transition: background 0.2s, transform 0.15s, border-color 0.2s;
+      transition: filter 0.2s, transform 0.15s;
+      text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.8);
+      min-width: 180px;
     }
     .choice-btn:hover {
-      background: rgba(38, 77, 115, 0.9);
-      border-color: rgba(160, 196, 255, 0.5);
+      filter: brightness(1.25);
       transform: scale(1.04);
     }
 
@@ -195,6 +207,7 @@
 
 <canvas id="starfield"></canvas>
 
+<button class="log-toggle" id="autoplayBtn" style="right: 9rem;">▶ 自動播放</button>
 <button class="log-toggle" id="logToggle">對話記錄</button>
 
 <div class="log-panel" id="logPanel">
@@ -239,12 +252,56 @@ const DECLINE_LINES = [
   { speaker: '摩耳菲婭', text: '好，等你想要放飛的時候再來吧。' }
 ];
 
+// ---- Star Fragment helpers ----
+function getUsername() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user ? user.username : null;
+  } catch { return null; }
+}
+
+// Return the first shard in myShards that hasn't been donated yet, or null.
+function getUndonatedShard() {
+  try {
+    const shards = JSON.parse(localStorage.getItem('myShards') || '[]');
+    return shards.find(s => !s.isDonated) || null;
+  } catch { return null; }
+}
+
+// Mark a shard as donated in localStorage by shardId.
+function markShardDonatedLocally(shardId) {
+  try {
+    const shards = JSON.parse(localStorage.getItem('myShards') || '[]');
+    const updated = shards.map(s => s.shardId === shardId ? { ...s, isDonated: true } : s);
+    localStorage.setItem('myShards', JSON.stringify(updated));
+  } catch {}
+}
+
+// Donate to server then proceed; on any error still proceed so the player isn't blocked.
+function donateShardThenProceed(shard, afterUrl) {
+  const username = getUsername();
+  if (!username || !shard || !shard.shardId) {
+    transitionTo(afterUrl);
+    return;
+  }
+  fetch('/api/fragments/donate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, shardId: shard.shardId })
+  })
+    .then(() => { markShardDonatedLocally(shard.shardId); })
+    .catch(() => {})
+    .finally(() => transitionTo(afterUrl));
+}
+
 // ---- State ----
 let currentIndex = 0;
 let isTyping = false;
 let typeTimer = null;
 let fullText = '';
 const log = [];
+let autoplay = false;
+let autoplayTimer = null;
 
 // ---- DOM refs ----
 const speakerEl    = document.getElementById('speakerName');
@@ -353,6 +410,7 @@ function showEntry(entry) {
       showChoices(entry.choices, entry.choiceKey);
     } else {
       hintEl.style.display = 'block';
+      if (autoplay) scheduleAutoAdvance();
     }
   });
 
@@ -381,9 +439,14 @@ function onChoice(index, text, choiceKey) {
 
   if (choiceKey === 'launch') {
     if (index === 0) {
-      // "要" — mark complete and go to soulweave
+      // "要" — donate undonated shard if available, then go to soulweave
       markStoryComplete();
-      transitionTo('soulweave.html');
+      const shard = getUndonatedShard();
+      if (shard) {
+        donateShardThenProceed(shard, 'soulweave.html');
+      } else {
+        transitionTo('soulweave.html');
+      }
     } else {
       // "不要" — show decline lines, then go to soulweave
       showDeclineSequence();
@@ -448,17 +511,39 @@ function markStoryComplete() {
   }
 }
 
-function getUsername() {
-  try {
-    const user = JSON.parse(localStorage.getItem('user'));
-    return user ? user.username : null;
-  } catch { return null; }
-}
-
 // ---- Transition to next page ----
 function transitionTo(url) {
   overlay.classList.add('active');
   setTimeout(() => { window.location.href = url; }, 900);
+}
+
+// ---- Autoplay ----
+function scheduleAutoAdvance() {
+  if (autoplayTimer) clearTimeout(autoplayTimer);
+  autoplayTimer = setTimeout(() => {
+    autoplayTimer = null;
+    if (!autoplay || choicesArea.classList.contains('visible') || logPanel.classList.contains('open')) return;
+    const entry = DIALOGUE[currentIndex];
+    if (entry) log.push({ speaker: entry.speaker, text: entry.text });
+    currentIndex++;
+    if (currentIndex < DIALOGUE.length) showEntry(DIALOGUE[currentIndex]);
+  }, 2000);
+}
+
+function toggleAutoplay() {
+  autoplay = !autoplay;
+  const btn = document.getElementById('autoplayBtn');
+  if (autoplay) {
+    btn.textContent = '⏸ 自動播放';
+    btn.style.color = '#ffcc44';
+    btn.style.borderColor = 'rgba(255, 204, 68, 0.3)';
+    if (!isTyping && !choicesArea.classList.contains('visible')) scheduleAutoAdvance();
+  } else {
+    btn.textContent = '▶ 自動播放';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+    if (autoplayTimer) { clearTimeout(autoplayTimer); autoplayTimer = null; }
+  }
 }
 
 // ---- Advance on click ----
@@ -474,12 +559,16 @@ document.addEventListener('click', (e) => {
       showChoices(entry.choices, entry.choiceKey);
     } else {
       hintEl.style.display = 'block';
+      if (autoplay) scheduleAutoAdvance();
     }
     return;
   }
 
   // If choices are visible, don't advance
   if (choicesArea.classList.contains('visible')) return;
+
+  // Cancel any pending autoplay
+  if (autoplayTimer) { clearTimeout(autoplayTimer); autoplayTimer = null; }
 
   // Advance
   const entry = DIALOGUE[currentIndex];
@@ -508,6 +597,11 @@ logClose.addEventListener('click', (e) => {
   logPanel.classList.remove('open');
 });
 
+document.getElementById('autoplayBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleAutoplay();
+});
+
 // ---- Keyboard support ----
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && logPanel.classList.contains('open')) {
@@ -526,6 +620,14 @@ if (localStorage.getItem('soulweaveStoryDone') === 'true') {
   // Already done — go straight to soulweave
   window.location.href = 'soulweave.html';
 } else {
+  // Personalise the launch prompt if the player has a created shard
+  const pendingShard = getUndonatedShard();
+  if (pendingShard) {
+    const lastEntry = DIALOGUE[DIALOGUE.length - 1];
+    if (lastEntry && lastEntry.choiceKey === 'launch') {
+      lastEntry.text = `你在旅途中創造了一枚星魂碎片，上面刻著「${pendingShard.inscription}」。要把它放飛出去，讓它化為星核，守護某位素未謀面的旅行者嗎？`;
+    }
+  }
   // Start the dialogue
   showEntry(DIALOGUE[0]);
 }

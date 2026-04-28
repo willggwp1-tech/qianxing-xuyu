@@ -23,6 +23,11 @@ async function connectDB() {
     // Ensure indexes for the users collection
     await db.collection('users').createIndex({ username: 1 }, { unique: true });
     await db.collection('users').createIndex({ email: 1 }, { unique: true });
+    // Indexes for shard collections
+    await db.collection('fragment_originals').createIndex({ creatorId: 1 });
+    await db.collection('fragment_originals').createIndex({ isDonated: 1 });
+    await db.collection('public_fragments').createIndex({ donatedBy: 1 });
+    await db.collection('user_fragments').createIndex({ userId: 1 });
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
     process.exit(1);
@@ -148,7 +153,7 @@ app.post('/api/progress/save', async (req, res) => {
     }
 
     // Validate currentPage is one of the known game pages
-    const validPages = ['prologue.html', 'chapter1.html', 'chapter_select.html', 'prepare.html', 'chapter2.html', 'duel.html', 'soulweave_story.html', 'soulweave.html', 'chatbot.html', 'ending.html'];
+    const validPages = ['prologue.html', 'chapter1.html', 'level_select.html', 'prepare.html', 'chapter2.html', 'duel.html', 'soulweave_story.html', 'soulweave.html', 'chatbot.html', 'ending.html'];
     if (!validPages.includes(currentPage)) {
       return res.status(400).json({ error: '無效的頁面 Invalid page' });
     }
@@ -416,6 +421,148 @@ app.get('/api/soulweave-story/status', async (req, res) => {
     res.json({ completed: !!(user && user.soulweaveStoryDone) });
   } catch (err) {
     console.error('Soulweave story status error:', err);
+    res.status(500).json({ error: '伺服器錯誤 Server error' });
+  }
+});
+
+// ============================================================
+// --- Resonance Shards (星魂碎片) API ---
+// Collections:
+//   fragment_originals  — private shards owned by players
+//   public_fragments    — donated shards in the public pool
+// ============================================================
+
+// Valid word lists (server-side validation)
+const SHARD_WORDS = {
+  A: ['感恩','希望','勇氣','平靜','陪伴','理解','接納','信任','溫暖','力量'],
+  B: ['堅持','放手','面對','擁抱','說出來','休息','求助','原諒','相信','行動'],
+  C: ['會好的','不孤單','值得','自由','成長','放下','重生','光芒','平靜','連結']
+};
+
+// POST /api/fragments/generate — create a new shard from word selection
+app.post('/api/fragments/generate', async (req, res) => {
+  try {
+    const { username, wordA, wordB, wordC, sourceChapter, distortionType } = req.body;
+
+    if (!username || !wordA || !wordB || !wordC) {
+      return res.status(400).json({ error: '缺少必要欄位 Missing required fields' });
+    }
+    if (!SHARD_WORDS.A.includes(wordA) || !SHARD_WORDS.B.includes(wordB) || !SHARD_WORDS.C.includes(wordC)) {
+      return res.status(400).json({ error: '無效的詞語選擇 Invalid word selection' });
+    }
+
+    const user = await db.collection('users').findOne({ username });
+    if (!user) return res.status(401).json({ error: '使用者不存在 User not found' });
+
+    const inscription = `${wordA} ${wordB} ${wordC}`;
+    const now = new Date();
+    const shard = {
+      creatorId: user._id,
+      creatorName: username,
+      inscription,
+      words: [wordA, wordB, wordC],
+      sourceChapter: sourceChapter || 1,
+      distortionType: distortionType || '',
+      isDonated: false,
+      createdAt: now
+    };
+
+    const result = await db.collection('fragment_originals').insertOne(shard);
+    res.status(201).json({ message: '星魂碎片已創建 Shard created', shardId: result.insertedId, inscription });
+  } catch (err) {
+    console.error('Fragment generate error:', err);
+    res.status(500).json({ error: '伺服器錯誤 Server error' });
+  }
+});
+
+// POST /api/fragments/donate — donate a private shard to the public pool
+app.post('/api/fragments/donate', async (req, res) => {
+  try {
+    const { username, shardId } = req.body;
+    if (!username || !shardId) {
+      return res.status(400).json({ error: '缺少必要欄位 Missing required fields' });
+    }
+
+    const { ObjectId } = require('mongodb');
+    let oid;
+    try { oid = new ObjectId(shardId); } catch { return res.status(400).json({ error: '無效的 shardId Invalid shardId' }); }
+
+    const user = await db.collection('users').findOne({ username });
+    if (!user) return res.status(401).json({ error: '使用者不存在 User not found' });
+
+    const shard = await db.collection('fragment_originals').findOne({ _id: oid, creatorId: user._id });
+    if (!shard) return res.status(404).json({ error: '找不到碎片 Shard not found' });
+    if (shard.isDonated) return res.status(409).json({ error: '已捐獻 Already donated' });
+
+    const now = new Date();
+    await db.collection('fragment_originals').updateOne({ _id: oid }, { $set: { isDonated: true, donatedAt: now } });
+    await db.collection('public_fragments').insertOne({
+      originalId: oid,
+      inscription: shard.inscription,
+      words: shard.words,
+      creatorName: username,
+      donatedBy: user._id,
+      sourceChapter: shard.sourceChapter,
+      distortionType: shard.distortionType,
+      donatedAt: now
+    });
+
+    // Update player donation count
+    await db.collection('players').updateOne({ username }, { $inc: { totalDonated: 1 }, $set: { updatedAt: now } });
+
+    res.json({ message: '捐獻成功 Shard donated' });
+  } catch (err) {
+    console.error('Fragment donate error:', err);
+    res.status(500).json({ error: '伺服器錯誤 Server error' });
+  }
+});
+
+// GET /api/fragments/random — return one random public shard for spawning in a chapter
+app.get('/api/fragments/random', async (req, res) => {
+  try {
+    const { username } = req.query;
+    // Exclude shards created by the requesting user so they see others' shards
+    const query = username ? { creatorName: { $ne: username } } : {};
+    const count = await db.collection('public_fragments').countDocuments(query);
+    if (count === 0) return res.json({ found: false });
+
+    const skip = Math.floor(Math.random() * count);
+    const shard = await db.collection('public_fragments').findOne(query, { skip });
+    res.json({ found: true, shard: { inscription: shard.inscription, words: shard.words, creatorName: shard.creatorName } });
+  } catch (err) {
+    console.error('Fragment random error:', err);
+    res.status(500).json({ error: '伺服器錯誤 Server error' });
+  }
+});
+
+// POST /api/fragments/collect — record that a player collected a shard in a chapter
+app.post('/api/fragments/collect', async (req, res) => {
+  try {
+    const { username, inscription, creatorName, chapter } = req.body;
+    if (!username || !inscription) {
+      return res.status(400).json({ error: '缺少必要欄位 Missing required fields' });
+    }
+
+    const user = await db.collection('users').findOne({ username });
+    if (!user) return res.status(401).json({ error: '使用者不存在 User not found' });
+
+    const now = new Date();
+    await db.collection('user_fragments').insertOne({
+      userId: user._id,
+      username,
+      inscription,
+      creatorName: creatorName || '',
+      chapter: chapter || 1,
+      collectedAt: now,
+      sourceType: 'received'
+    });
+
+    // Update player received count
+    await db.collection('players').updateOne({ username }, { $inc: { totalReceived: 1 }, $set: { updatedAt: now } });
+
+    res.status(201).json({ message: '碎片已收集 Shard collected' });
+  } catch (err) {
+    console.error('Fragment collect error:', err);
     res.status(500).json({ error: '伺服器錯誤 Server error' });
   }
 });
