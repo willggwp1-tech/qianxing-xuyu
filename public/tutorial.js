@@ -296,5 +296,27 @@
     }
   }
 
-  window.TutorialSystem = { start: start, autoStart: autoStart };
+  // pendingAutoStart: fires when an explicit unlock flag is set (e.g. after shard_create)
+  // OR on plain first visit. The unlock flag overrides the tut_done guard so returning
+  // players also see the tutorial when they reach a newly unlocked page.
+  function pendingAutoStart(steps, pageKey, unlockFlag) {
+    function run() {
+      injectStyles();
+      buildDOM();
+      addReplayBtn(steps, pageKey);
+      var pending = unlockFlag && localStorage.getItem(unlockFlag) === 'true';
+      var done    = localStorage.getItem('tut_done_' + pageKey) === 'true';
+      if (pending || !done) {
+        if (pending) localStorage.removeItem(unlockFlag);
+        setTimeout(function() { start(steps, pageKey); }, 700);
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', run);
+    } else {
+      setTimeout(run, 0);
+    }
+  }
+
+  window.TutorialSystem = { start: start, autoStart: autoStart, pendingAutoStart: pendingAutoStart };
 })();

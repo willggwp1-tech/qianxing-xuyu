@@ -305,6 +305,10 @@ async function createShard() {
 
     showStatus('✦ 碎片已創建！感謝你的祝福。');
 
+    // Unlock tutorial flags for the next pages
+    localStorage.setItem('tut_unlock_chatbot', 'true');
+    localStorage.setItem('tut_unlock_soulweave', 'true');
+
     // Navigate to next page after short delay
     setTimeout(() => {
       const nextPage = localStorage.getItem('afterShardCreate') || 'chatbot.html';
