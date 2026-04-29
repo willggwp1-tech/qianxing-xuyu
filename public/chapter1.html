@@ -172,16 +172,7 @@ const DIALOGUE = [
 
   // === Evidence 1: Math notebook ===
   { speaker: '', text: '首先，我們來到莊子傑的課桌，開始尋找反駁他的證據。', bg: 'ch1_3' },
-  { speaker: '', text: '【證據1】寫滿公式的數學筆記本（認知重組） — 子傑的筆記本，上面記載了許多數學公式以及技巧，足以體現他對於學習的熱誠。', evidence: true, evidenceId: 'ev_math_notebook', autoCollect: false },
-  { speaker: '我', text: '原來子傑這麼努力學習的，還記了這麼多筆記。' },
-
-  // === Evidence 2: Drawer full of textbooks ===
-  { speaker: '', text: '【證據2】塞滿課本的抽屜（認知重組） — 被子傑精心安排過的課本排列方式，體現其對於上課與學習的熱情。', evidence: true, evidenceId: 'ev_drawer', autoCollect: false },
-  { speaker: '', text: '課本排列整齊，似乎被子傑精心安排過，一點也不雜亂，看來子傑對於學習還是很有熱情的。' },
-
-  // === Evidence 3: Study plan ===
-  { speaker: '', text: '【證據3】學習進度表（行為活化） — 體現子傑對於學習的規劃。', evidence: true, evidenceId: 'ev_study_plan', autoCollect: false },
-  { speaker: '我', text: '原來子傑一直都在注意自己的學習進度，真是太有毅力了。' },
+  { speaker: '摩耳菲婭', text: '仔細搜索課桌周圍，找出三樣能反駁子傑悲觀想法的證據吧！', multiHotzone: ['ev_math_notebook', 'ev_drawer', 'ev_study_plan'], multiHotzoneSkip: 0 },
 
   // === Go home for more evidence ===
   { speaker: '摩耳菲婭', text: '除了來自學校的壓力外，還有來自家中的壓力，我想我們還可以回一趟家看看有沒有能應對的東西。' },
@@ -199,7 +190,7 @@ const DIALOGUE = [
   { speaker: '', text: '【證據4】女同學的話 （行為活化）— 自己每次課間休息都會學習，也提及了子傑可能不適合目前這個學習方法。', evidence: true, evidenceId: 'ev_classmate_words', autoCollect: true },
 
   // === Home — confronting mother ===
-  { speaker: '', text: '回到家中。', bg: 'ch1_1' },
+  { speaker: '', text: '回到家中。', bg: 'ch1_5' },
   { speaker: '媽媽', text: '子傑回家了？' },
   { speaker: '子傑', text: '嗯。' },
   { speaker: '', text: '媽媽似乎看出了我，或者說子傑，的樣子不對勁。' },
@@ -220,7 +211,7 @@ const DIALOGUE = [
   { speaker: '', text: '看到帳本數目增加了幾次後，最後有幾筆大支出把一大半存款掏空了。' },
   { speaker: '', text: '這時我才理解到媽媽剛才的話是什麼意思。' },
   { speaker: '', text: '「媽媽只是希望你能夠有能力過好自己的生活，條件好點，不用像我一樣。」' },
-  { speaker: '', text: '【證據6】（蘇格拉底式提問）媽媽的帳本 — 存款增加了好幾次但數目不多，最後幾筆大支出（水費、電費、煤氣、學費等）把一大半存款掏空了。媽媽真的對待子傑很差嗎？', evidence: true, evidenceId: 'ev_account_book', autoCollect: false },
+  { speaker: '', text: '【證據6】（蘇格拉底式提問）媽媽的帳本 — 存款增加了好幾次但數目不多，最後幾筆大支出（水費、電費、煤氣、學費等）把一大半存款掏空了。媽媽真的對待子傑很差嗎？', evidence: true, evidenceId: 'ev_account_book', autoCollect: true},
 
   // === Return to save the boy ===
   { speaker: '', text: '得知這一切之後的我心情很沈重，既知道子傑努力學習但表現不佳且背負著重大壓力，又知道媽媽在背後對子傑的感情以及負擔。' },
@@ -280,9 +271,9 @@ const ALL_EVIDENCE = [
 
 // Placeholder hotzone coordinates — adjust these values manually as needed
 const HOTZONE_COORDS = {
-  ev_math_notebook: { x: 960, y: 400, w: 200, h: 160 },
-  ev_drawer:        { x: 760, y: 500, w: 200, h: 120 },
-  ev_study_plan:    { x: 1100, y: 380, w: 180, h: 140 },
+  ev_math_notebook: { x: 600, y: 400, w: 300, h: 250 },
+  ev_drawer:        { x: 1000, y: 800, w: 1600, h: 400 },
+  ev_study_plan:    { x: 1400, y: 380, w: 250, h: 275 },
   ev_account_book:  { x: 850,  y: 460, w: 220, h: 140 }
 };
 
@@ -306,6 +297,7 @@ class Chapter1Scene extends Phaser.Scene {
     // Resonance Shard state
     this.shardSpawned = false;        // only one shard per chapter
     this.shardCollected = false;
+    this.shardPopupOpen = false;
     this.shardObject = null;
     this.shardData = null;            // { inscription, creatorName } fetched from server
     this.shardSpawnTimer = null;
@@ -331,6 +323,7 @@ class Chapter1Scene extends Phaser.Scene {
     this.load.image('autoplayBtn', 'assets/buttons/autoplay.png');
     this.load.audio('shardCollect', 'assets/music/shard_collect.mp3');
     this.load.image('starFragment', 'assets/cards/star_fragment.png');
+    this.load.image('skipBtn', 'assets/buttons/skip.png');
   }
 
   create() {
@@ -432,6 +425,17 @@ class Chapter1Scene extends Phaser.Scene {
     this.musicBtn.on('pointerover', () => this.musicBtn.setTint(0xaad4ff));
     this.musicBtn.on('pointerout', () => this.musicBtn.clearTint());
 
+    // --- Skip button (top-right, left of autoplay, matches prologue style) ---
+    const SKIP_TARGET = DIALOGUE.findIndex(e => e.speaker === '我' && e.text === '那我們快去找吧。');
+    this.skipBtn = this.add.image(width - 240, 8, 'skipBtn')
+      .setDisplaySize(220, 80)
+      .setOrigin(1, 0)
+      .setDepth(11)
+      .setInteractive({ useHandCursor: true });
+    this.skipBtn.on('pointerover', () => this.skipBtn.setTint(0xddbbff));
+    this.skipBtn.on('pointerout', () => this.skipBtn.clearTint());
+    this.skipBtn.on('pointerdown', () => { if (SKIP_TARGET > 0) this.skipToLine(SKIP_TARGET); });
+
     // --- Evidence counter (top-left, below music button) ---
     this.evidenceCounterBg = this.add.rectangle(88, 88, 160, 44, 0x0a1020, 0.85)
       .setStrokeStyle(1, 0x4488cc, 0.6)
@@ -478,6 +482,46 @@ class Chapter1Scene extends Phaser.Scene {
   // Resonance Shard system
   // ============================================================
 
+  // ---- Skip to a target dialogue index ----
+  skipToLine(targetIndex) {
+    // Clean up all active UI state
+    if (this.typeTimer) { this.typeTimer.destroy(); this.typeTimer = null; }
+    if (this.autoplayTimer) { this.autoplayTimer.destroy(); this.autoplayTimer = null; }
+    this.clearChoices();
+    this.clearPopup();
+    this.deactivateHotzone();
+    // Destroy any multi-hotzones
+    Object.values(this.multiHotzoneGlows).forEach(objs => {
+      objs.forEach(o => { this.tweens.killTweensOf(o); o.destroy(); });
+    });
+    this.multiHotzoneGlows = {};
+    this.pendingMultiHotzones = new Set();
+    this.multiHotzoneSkip = 0;
+    this.collecting = false;
+    this.choiceMode = false;
+    this.isTyping = false;
+    this.continueHint.setVisible(false).disableInteractive();
+
+    // Replay bg/blackout states up to target
+    for (let i = 0; i < targetIndex; i++) {
+      const e = DIALOGUE[i];
+      if (e.bg) { this.bg.setTexture(e.bg); this.fitBackground(this.bg); }
+      if (e.blackout === true) this.blackOverlay.setAlpha(1);
+      else if (e.blackout === false) this.blackOverlay.setAlpha(0);
+      // Auto-collect any autoCollect evidence along the way
+      if (e.evidence && e.autoCollect && e.evidenceId && !this.collectedEvidence.includes(e.evidenceId)) {
+        this.collectedEvidence.push(e.evidenceId);
+      }
+    }
+    this.updateEvidenceCounter();
+
+    // Hide skip button once used
+    this.skipBtn.setVisible(false);
+
+    this.dialogueIndex = targetIndex;
+    this.showLine();
+  }
+
   // ---- Schedule one shard spawn per chapter ----
   scheduleShardSpawn() {
     if (this.shardSpawned) return;
@@ -496,15 +540,12 @@ class Chapter1Scene extends Phaser.Scene {
       .then(data => {
         if (data.found) {
           this.shardData = { inscription: data.shard.inscription, creatorName: data.shard.creatorName };
-        } else {
-          // No public shards yet — use a placeholder so the shard still appears
-          this.shardData = { inscription: '希望 堅持 會好的', creatorName: '旅行者' };
+          this.spawnFloatingShard();
         }
-        this.spawnFloatingShard();
+        // If no public shards exist, don't spawn anything
       })
       .catch(() => {
-        this.shardData = { inscription: '希望 堅持 會好的', creatorName: '旅行者' };
-        this.spawnFloatingShard();
+        // On error, don't spawn
       });
   }
 
@@ -520,7 +561,7 @@ class Chapter1Scene extends Phaser.Scene {
     // Container (no setInteractive — hit-testing is done via pointer distance in scene handler)
     const shard = this.add.container(startX, baseY).setDepth(18).setSize(110, 110);
 
-    // Crystal image — pure image, no label
+    // Crystal image
     const img = this.add.image(0, 0, 'starFragment').setDisplaySize(100, 100);
     shard.add(img);
 
@@ -587,31 +628,106 @@ class Chapter1Scene extends Phaser.Scene {
     if (this.shardDriftTween) { this.shardDriftTween.stop(); this.shardDriftTween = null; }
     this.tweens.killTweensOf(shardObj);
 
-    const { width } = this.scale;
-    // Fly to the shard counter (top-right corner)
-    this.tweens.add({
-      targets: shardObj,
-      x: width - 88, y: 88, scale: 0.3, alpha: 0,
-      duration: 600, ease: 'Cubic.easeIn',
-      onComplete: () => {
-        shardObj.destroy();
-        this.shardObject = null;
-        this.onShardArrived();
-      }
+    // Show info popup first — player confirms collection
+    this.showShardInfoPopup(() => {
+      const { width } = this.scale;
+      this.tweens.add({
+        targets: shardObj,
+        x: width - 88, y: 88, scale: 0.3, alpha: 0,
+        duration: 600, ease: 'Cubic.easeIn',
+        onComplete: () => {
+          shardObj.destroy();
+          this.shardObject = null;
+          this.onShardArrived();
+        }
+      });
+      this.spawnShardParticles(shardObj.x, shardObj.y);
+      try {
+        const sfx = this.sound.get('shardCollect');
+        if (sfx) sfx.play({ volume: 0.6 });
+        else if (this.sound.context) {
+          const snd = this.sound.add('shardCollect', { volume: 0.6 });
+          snd.play();
+        }
+      } catch (_) {}
+    });
+  }
+
+  // ---- Info popup shown when player clicks the floating shard ----
+  showShardInfoPopup(onCollect) {
+    const { width, height } = this.scale;
+    const popupObjs = [];
+    const cx = width / 2;
+    const cy = height / 2 - 40;
+
+    const creator     = this.shardData ? this.shardData.creatorName : '旅行者';
+    const inscription = this.shardData ? this.shardData.inscription : '希望 堅持 會好的';
+    const username    = getUsername() || '你';
+
+    this.shardPopupOpen = true;
+
+    const overlay = this.add.rectangle(cx, height / 2, width, height, 0x000000, 0.65).setDepth(25);
+    popupObjs.push(overlay);
+
+    const box = this.add.rectangle(cx, cy, 560, 420, 0x0c0d1e, 0.98)
+      .setStrokeStyle(2, 0xaa88ff, 0.9).setDepth(26);
+    popupObjs.push(box);
+
+    // Crystal icon in popup
+    const popupCrystal = this.add.image(cx, cy - 148, 'starFragment').setDisplaySize(80, 80).setDepth(27);
+    popupObjs.push(popupCrystal);
+    this.tweens.add({ targets: popupCrystal, alpha: { from: 0.75, to: 1 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    const title = this.add.text(cx, cy - 100, '❆ 星魂碎片 ❆', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '32px', color: '#cc99ff', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(27);
+    popupObjs.push(title);
+
+    const fromText = this.add.text(cx, cy - 44, `來自旅行者：${creator}`, {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '24px', color: '#9999bb'
+    }).setOrigin(0.5).setDepth(27);
+    popupObjs.push(fromText);
+
+    const inscText = this.add.text(cx, cy + 8, `「${inscription}」`, {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '30px', color: '#e0d0ff', fontStyle: 'italic',
+      wordWrap: { width: 500 }, align: 'center'
+    }).setOrigin(0.5, 0).setDepth(27);
+    popupObjs.push(inscText);
+
+    const playerText = this.add.text(cx, cy + 106, `收藏者：${username}`, {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '22px', color: '#8899aa'
+    }).setOrigin(0.5).setDepth(27);
+    popupObjs.push(playerText);
+
+    const hintText = this.add.text(cx, cy + 142, '收集後可在對決中呼喚這份祝福。', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '20px', color: '#7788aa'
+    }).setOrigin(0.5).setDepth(27);
+    popupObjs.push(hintText);
+
+    const btnBg = this.add.rectangle(cx, cy + 186, 240, 62, 0x1a1040, 1)
+      .setStrokeStyle(2, 0xaa88ff, 0.8).setDepth(27).setInteractive({ useHandCursor: true });
+    const btnTxt = this.add.text(cx, cy + 186, '收入囊中', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '30px', color: '#cc99ff'
+    }).setOrigin(0.5).setDepth(28);
+    popupObjs.push(btnBg, btnTxt);
+
+    btnBg.on('pointerover', () => btnBg.setFillStyle(0x2d1a60, 1));
+    btnBg.on('pointerout',  () => btnBg.setFillStyle(0x1a1040, 1));
+    btnBg.once('pointerdown', () => {
+      this.shardPopupOpen = false;
+      popupObjs.forEach(o => { this.tweens.killTweensOf(o); o.destroy(); });
+      onCollect();
     });
 
-    // Particle burst (simple circles)
-    this.spawnShardParticles(shardObj.x, shardObj.y);
-
-    // Collected sound (graceful fallback if audio not loaded)
-    try {
-      const sfx = this.sound.get('shardCollect');
-      if (sfx) sfx.play({ volume: 0.6 });
-      else if (this.sound.context) {
-        const snd = this.sound.add('shardCollect', { volume: 0.6 });
-        snd.play();
-      }
-    } catch (_) {}
+    // Fade in all elements
+    popupObjs.forEach(o => o.setAlpha(0));
+    this.tweens.add({ targets: popupObjs, alpha: 1, duration: 300, ease: 'Sine.easeOut' });
   }
 
   // ---- Called after shard flies to counter ----
@@ -734,7 +850,7 @@ class Chapter1Scene extends Phaser.Scene {
     // Handle evidence collection before choice/continue logic
     if (entry.evidence && entry.evidenceId) {
       if (entry.autoCollect) {
-        // Auto-collect immediately
+        // Auto-collect: show popup but no visual hotzone
         this.collectEvidence(entry.evidenceId);
         return; // popup will resume flow
       } else {
@@ -1113,6 +1229,7 @@ class Chapter1Scene extends Phaser.Scene {
   advance() {
     if (this.choiceMode) return;
     if (this.collecting) return;
+    if (this.shardPopupOpen) return;
 
     if (this.autoplayTimer) { this.autoplayTimer.destroy(); this.autoplayTimer = null; }
 

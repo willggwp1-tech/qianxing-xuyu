@@ -11,14 +11,21 @@
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script src="tutorial.js"></script>
 <script>
 /* ============================================================
    牽星絮語 — 對決 (Duel Scene) — Phaser 3
    Reads:  localStorage.collectedEvidence  (array of collected evidence IDs)
    Writes: localStorage.battleResult (battle result object)
+
+   HP system:
+     Enemy starts at 4 HP  — correct answer → enemy -1 HP
+     Player starts at 3 HP — wrong answer   → player -1 HP
+   Win:  enemy HP reaches 0
+   Lose: player HP reaches 0
    ============================================================ */
 
-// ---- 4 rounds of distorted thoughts ----
+// ---- Evidence card definitions ----
 const ALL_EVIDENCE = [
   { id: 'ev_math_notebook',   name: '數學筆記本',       type: 'cognitive_restructure',   desc: '寫滿公式的數學筆記本，體現子傑對學習的熱誠。' },
   { id: 'ev_drawer',          name: '整齊的抽屜',       type: 'cognitive_restructure',   desc: '精心安排的課本排列，體現對上課的熱情。' },
@@ -28,20 +35,43 @@ const ALL_EVIDENCE = [
   { id: 'ev_account_book',    name: '媽媽的帳本',       type: 'socratic_questioning',    desc: '記錄媽媽辛苦存款、大支出掏空積蓄的帳本。' }
 ];
 
+// ---- Round definitions ----
+// correctIds: all IDs that must be selected to count as correct.
+//   - Single-card round  → array of length 1; player submits when any 1 card is dragged in.
+//   - Multi-card round   → array of length N; player must drag in exactly those N cards before confirming.
+// techniqueLabel: shown in the thought-bubble header.
 const ROUNDS = [
-  { thought: '「我是一個廢物，什麼都做不好」', technique: 'cognitive_restructure',   techniqueLabel: '認知重組' },
-  { thought: '「我從來沒有努力過」',          technique: 'behavioral_activation',   techniqueLabel: '行為活化' },
-  { thought: '「媽媽只會逼迫我，根本不在乎我」', technique: 'reduce_misunderstanding', techniqueLabel: '減少誤解' },
-  { thought: '「未來沒有希望，我永遠不會變好」', technique: 'combined',                techniqueLabel: '綜合應對' }
+  {
+    thought:        '「我沒有努力學習，成績一直都是墊底的。」',
+    techniqueLabel: '認知重組',
+    correctIds:     ['ev_math_notebook'],   // single correct card
+    requiredCount:  1
+  },
+  {
+    thought:        '「學習根本沒有任何意義，我沒有獲得滿足感。我也沒有興趣學習。」',
+    techniqueLabel: '行為活化',
+    correctIds:     ['ev_drawer', 'ev_study_plan'], // both must be selected
+    requiredCount:  2
+  },
+  {
+    thought:        '「無論我是否努力學習，我也記不牢固知識，考試也考不好。我就是沒有天賦，大家都會瞧不起我的。」',
+    techniqueLabel: '減少誤解',
+    correctIds:     ['ev_classmate_words'], // single correct card
+    requiredCount:  1
+  },
+  {
+    thought:        '「媽媽根本就不在意我，只是把我當作一個學習機器！」',
+    techniqueLabel: '減少誤解',
+    correctIds:     ['ev_dinosaur_model', 'ev_account_book'], // both must be selected
+    requiredCount:  2
+  }
 ];
 
-// Corruption level changes per result type
-const CORRUPTION_DELTA = {
-  CORRECT: -25,
-  MISS:      0
-};
+// ---- Starting HP ----
+const ENEMY_START_HP  = 4;
+const PLAYER_START_HP = 3;
 
-// Type color mapping
+// ---- Card image key mapping ----
 const TYPE_COLORS = {
   cognitive_restructure:   0x4488ff,
   behavioral_activation:   0x44cc88,
@@ -49,52 +79,66 @@ const TYPE_COLORS = {
   socratic_questioning:    0xcc66bb
 };
 
+// ---- Helper: check if a submitted set of IDs is exactly correct for a round ----
+// Returns 'CORRECT' when submitted IDs match correctIds exactly (order-insensitive).
+// Returns 'WRONG'   otherwise.
+function evaluateSubmission(round, submittedIds) {
+  const required = [...round.correctIds].sort();
+  const given    = [...submittedIds].sort();
+  if (required.length !== given.length) return 'WRONG';
+  return required.every((id, i) => id === given[i]) ? 'CORRECT' : 'WRONG';
+}
+
 // ---- Duel Scene ----
 class DuelScene extends Phaser.Scene {
   constructor() {
     super('DuelScene');
-    this.battleCards   = [];   // collected evidence cards
-    this.usedCardIds   = [];   // IDs of cards already played
-    this.currentRound  = 0;    // 0-indexed
-    this.corruption    = 100;  // Zihjie's negative-energy meter (starts full)
-    this.battleResults = [];   // { round, cardId, resultType } per round
-    this.roundState    = 'idle'; // idle | waiting_card | resolving | done
-    this.busy          = false;
-    this.cardObjects   = [];
-    this.dropZone      = null;
-    this.draggingCard  = null;
+    this.battleCards    = [];   // collected evidence cards available as hand
+    this.usedCardIds    = [];   // cards consumed (removed from hand after use)
+    this.currentRound   = 0;
+    this.enemyHP        = ENEMY_START_HP;
+    this.playerHP       = PLAYER_START_HP;
+    this.battleResults  = [];   // { round, submittedIds, result }
+    this.roundState     = 'idle';  // idle | selecting | resolving | done
+    this.busy           = false;
+    this.cardObjects    = [];
+    // Multi-select state
+    this.selectedCardIds = [];   // IDs staged in the drop zone this round
+    this.stagedCards     = [];   // card container objects sitting in drop zone
   }
 
   preload() {
-    this.load.image('bg', 'assets/background/background.png');
-    this.load.image('blueElf', 'assets/character/blue_elf.png');
-    this.load.image('dialogBox', 'assets/UI/dialog_box.PNG');
-    this.load.audio('bgm', 'assets/music/card_battle.mp3');
-    this.load.image('musicBtn', 'assets/buttons/music.png');
-    this.load.image('starFragment', 'assets/cards/star_fragment.png');
+    this.load.image('bg',         'assets/background/background.png');
+    this.load.image('blueElf',    'assets/character/blue_elf.png');
+    this.load.image('dialogBox',  'assets/UI/dialog_box.PNG');
+    this.load.audio('bgm',        'assets/music/card_battle.mp3');
+    this.load.image('musicBtn',   'assets/buttons/music.png');
+    this.load.image('starFragment','assets/cards/star_fragment.png');
+    // Evidence card images (Card1–6 mapped to evidence IDs via preload)
+    this.load.image('card_ev_classmate_words',  'assets/cards/Card1.png');
+    this.load.image('card_ev_dinosaur_model',   'assets/cards/Card2.png');
+    this.load.image('card_ev_account_book',     'assets/cards/Card3.png');
+    this.load.image('card_ev_study_plan',       'assets/cards/Card4.png');
+    this.load.image('card_ev_drawer',           'assets/cards/Card5.png');
+    this.load.image('card_ev_math_notebook',    'assets/cards/Card6.png');
   }
 
   create() {
     const { width, height } = this.scale;
 
-    // Load collected evidence as hand cards
+    // ---- Load hand from localStorage ----
     try {
       const ids = JSON.parse(localStorage.getItem('collectedEvidence') || '[]');
-      this.battleCards = ids
-        .map(id => ALL_EVIDENCE.find(e => e.id === id))
-        .filter(Boolean);
+      this.battleCards = ids.map(id => ALL_EVIDENCE.find(e => e.id === id)).filter(Boolean);
     } catch { this.battleCards = []; }
 
-    // Inject Resonance Shard card if player collected one in chapter
+    // Inject Resonance Shard if collected
     try {
       const shardRaw = localStorage.getItem('collectedShard');
       if (shardRaw) {
         const shard = JSON.parse(shardRaw);
-        // Prepend so it always appears first in hand
         this.battleCards.unshift({
-          id: 'resonance_shard',
-          name: '星魂碎片',
-          type: 'resonance',
+          id: 'resonance_shard', name: '星魂碎片', type: 'resonance',
           isResonance: true,
           inscription: shard.inscription || '',
           creatorName: shard.creatorName || '旅行者'
@@ -102,19 +146,18 @@ class DuelScene extends Phaser.Scene {
       }
     } catch {}
 
-    // --- Background ---
+    // ---- Background ----
     const bgImg = this.add.image(width / 2, height / 2, 'bg');
-    const bgScale = Math.max(width / bgImg.width, height / bgImg.height);
-    bgImg.setScale(bgScale);
+    bgImg.setScale(Math.max(width / bgImg.width, height / bgImg.height));
 
-    // --- Title ---
+    // ---- Title bar ----
     this.add.rectangle(width / 2, 40, width, 80, 0x0a0e1a, 0.8).setDepth(1);
     this.add.text(width / 2, 40, '第一章 — 認知對決', {
       fontFamily: '"Microsoft JhengHei", sans-serif',
       fontSize: '34px', color: '#a0c4ff', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(2);
 
-    // Back to prepare button
+    // Back button
     const backBtn = this.add.text(width - 40, 40, '準備 ←', {
       fontFamily: '"Microsoft JhengHei", sans-serif',
       fontSize: '26px', color: '#556677'
@@ -123,169 +166,334 @@ class DuelScene extends Phaser.Scene {
     backBtn.on('pointerover', () => backBtn.setColor('#a0c4ff'));
     backBtn.on('pointerout',  () => backBtn.setColor('#556677'));
 
-    // --- Zihjie character (left side) ---
-    this.elfSprite = this.add.image(300, 380, 'blueElf').setDepth(3);
-    const elfH = 300;
-    this.elfSprite.setScale(elfH / this.elfSprite.height);
-
-    this.add.text(300, 556, '莊子傑', {
+    // ---- Zihjie sprite (left) ----
+    this.elfSprite = this.add.image(260, 360, 'blueElf').setDepth(3);
+    this.elfSprite.setScale(300 / this.elfSprite.height);
+    this.add.text(260, 520, '莊子傑', {
       fontFamily: '"Microsoft JhengHei", sans-serif',
       fontSize: '26px', color: '#aabbcc'
     }).setOrigin(0.5).setDepth(3);
 
-    // --- Corruption bar ---
-    this.add.text(120, 590, '負面侵蝕', {
-      fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '22px', color: '#cc88aa'
+    // ---- Enemy HP bar ----
+    this.add.text(100, 560, '敵方生命', {
+      fontFamily: '"Microsoft JhengHei", sans-serif', fontSize: '22px', color: '#cc6688'
     }).setDepth(3);
-    this.corruptionBarBg = this.add.rectangle(300, 626, 360, 26, 0x1a1a2e, 1)
-      .setStrokeStyle(1, 0xaa4466, 0.5).setDepth(3);
-    this.corruptionBarFill = this.add.rectangle(120, 626, 360, 22, 0xcc4466, 1)
-      .setOrigin(0, 0.5).setDepth(4);
-    this.corruptionText = this.add.text(492, 626, '100%', {
-      fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '20px', color: '#dd88aa'
-    }).setOrigin(0, 0.5).setDepth(4);
+    this._buildHPDots('enemy', 520, 596, ENEMY_START_HP, 0xcc4466);
 
-    // --- Round indicator ---
-    this.roundText = this.add.text(width / 2, 90, '第 1 / 4 回合', {
+    // ---- Player HP bar ----
+    this.add.text(100, 636, '玩家生命', {
+      fontFamily: '"Microsoft JhengHei", sans-serif', fontSize: '22px', color: '#66aacc'
+    }).setDepth(3);
+    this._buildHPDots('player', 520, 672, PLAYER_START_HP, 0x4488cc);
+
+    // ---- Round indicator ----
+    this.roundText = this.add.text(width / 2, 90, '', {
       fontFamily: '"Microsoft JhengHei", sans-serif',
       fontSize: '26px', color: '#778899'
     }).setOrigin(0.5).setDepth(2);
 
-    // --- Distorted thought bubble (center) ---
-    this.thoughtBubbleBg = this.add.rectangle(width / 2, 340, 800, 200, 0x10152a, 0.92)
+    // ---- Thought bubble (center-right) ----
+    this.thoughtBubbleBg = this.add.rectangle(width / 2 + 160, 320, 820, 180, 0x10152a, 0.92)
       .setStrokeStyle(2, 0xcc4466, 0.5).setDepth(5);
-    this.thoughtLabel = this.add.text(width / 2, 254, '【扭曲思維】', {
+    this.thoughtLabel = this.add.text(width / 2 + 160, 240, '【扭曲思維】', {
       fontFamily: '"Microsoft JhengHei", sans-serif',
       fontSize: '22px', color: '#cc6688', fontStyle: 'italic'
     }).setOrigin(0.5).setDepth(6);
-    this.thoughtText = this.add.text(width / 2, 310, '', {
+    this.thoughtText = this.add.text(width / 2 + 160, 285, '', {
       fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '30px', color: '#e8d0d8',
-      wordWrap: { width: 740 }, align: 'center'
+      fontSize: '28px', color: '#e8d0d8',
+      wordWrap: { width: 760 }, align: 'center'
     }).setOrigin(0.5, 0).setDepth(6);
 
-    // --- Instruction text ---
-    this.instructionText = this.add.text(width / 2, 480, '將一張證據卡牌拖曳到中央區域來反駁這個想法', {
+    // ---- Instruction line ----
+    this.instructionText = this.add.text(width / 2, 455, '', {
       fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '24px', color: '#556677'
+      fontSize: '24px', color: '#778899'
     }).setOrigin(0.5).setDepth(5);
 
-    // --- Drop zone (center) ---
+    // ---- Drop zone (staging area) ----
     const dropX = width / 2;
-    const dropY = 570;
-    const dropW = 360;
-    const dropH = 120;
+    const dropY = 560;
+    const dropW = 500;
+    const dropH = 140;
     this.dropZoneBg = this.add.rectangle(dropX, dropY, dropW, dropH, 0x0c1826, 0.85)
       .setStrokeStyle(2, 0x446688, 0.5).setDepth(4);
-    this.dropZoneHint = this.add.text(dropX, dropY, '拖放至此', {
+    this.dropZoneHint = this.add.text(dropX, dropY, '拖放證據卡至此', {
       fontFamily: '"Microsoft JhengHei", sans-serif',
       fontSize: '24px', color: '#334455'
     }).setOrigin(0.5).setDepth(5);
-    this.dropZone = this.add.zone(dropX, dropY, dropW, dropH).setDepth(10);
+    // Invisible interaction zone for drop detection
+    this.dropZoneArea = this.add.zone(dropX, dropY, dropW, dropH).setDepth(10);
 
-    // --- Skip button (play no card) ---
-    this.skipBtn = this.createSmallButton(width - 200, dropY, '跳過此回合', () => this.playCard(null));
+    // ---- Confirm button (submit staged cards) ----
+    this.confirmBtn = this._makeButton(dropX + 310, dropY, '確認出牌', () => this._submitStagedCards());
+    this._hideBtn(this.confirmBtn);
 
-    // --- Feedback text ---
-    this.feedbackText = this.add.text(width / 2, 680, '', {
+    // ---- Feedback text ----
+    this.feedbackText = this.add.text(width / 2, 720, '', {
       fontFamily: '"Microsoft JhengHei", sans-serif',
       fontSize: '36px', color: '#ffcc44', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(20).setAlpha(0);
 
-    // --- Result overlay (hidden until end) ---
-    this.resultOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0)
-      .setDepth(40).setAlpha(0);
-    this.resultTitle = this.add.text(width / 2, height / 2 - 80, '', {
-      fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '54px', color: '#ffffff', fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(42).setAlpha(0);
-    this.resultSub = this.add.text(width / 2, height / 2 + 10, '', {
-      fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '28px', color: '#8899aa', align: 'center',
-      wordWrap: { width: 800 }
-    }).setOrigin(0.5).setDepth(42).setAlpha(0);
-    this.resultScore = this.add.text(width / 2, height / 2 + 70, '', {
-      fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '28px', color: '#a0c4ff'
-    }).setOrigin(0.5).setDepth(42).setAlpha(0);
+    // ---- Result overlay ----
+    this.resultOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0).setDepth(40).setAlpha(0);
 
-    // --- Hand cards ---
+    // ---- Hand cards ----
     this.buildHandCards();
 
-    // --- BGM ---
+    // ---- BGM ----
     this.musicOn = true;
     this.bgmLoopTimer = null;
     this.bgm = this.sound.add('bgm', { loop: false, volume: 0 });
     const playBgm = () => {
       if (!this.musicOn) return;
-      this.bgm.volume = 0;
-      this.bgm.play();
-      this.tweens.add({ targets: this.bgm, volume: 0.35, duration: 1500, ease: 'Linear' });
+      this.bgm.volume = 0; this.bgm.play();
+      this.tweens.add({ targets: this.bgm, volume: 0.35, duration: 1500 });
       const fadeMs = 1400;
       this.bgmLoopTimer = this.time.delayedCall(
         Math.max(0, this.bgm.duration * 1000 - fadeMs), () => {
           this.tweens.killTweensOf(this.bgm);
-          this.tweens.add({ targets: this.bgm, volume: 0, duration: fadeMs, ease: 'Linear' });
+          this.tweens.add({ targets: this.bgm, volume: 0, duration: fadeMs });
         });
     };
     this.bgm.on('complete', () => { this.bgmLoopTimer = null; playBgm(); });
     playBgm();
 
-    // Music toggle
     this.musicBtn = this.add.image(10, 8, 'musicBtn')
-      .setDisplaySize(70, 70).setOrigin(0, 0).setDepth(11)
-      .setInteractive({ useHandCursor: true });
+      .setDisplaySize(70, 70).setOrigin(0, 0).setDepth(11).setInteractive({ useHandCursor: true });
     this.musicBtn.on('pointerdown', () => this.toggleMusic());
     this.musicBtn.on('pointerover', () => this.musicBtn.setTint(0xaad4ff));
-    this.musicBtn.on('pointerout', () => this.musicBtn.clearTint());
+    this.musicBtn.on('pointerout',  () => this.musicBtn.clearTint());
 
-    // --- Drag events ---
+    // ---- Drag events ----
+    this.input.on('dragstart', (pointer, go) => {
+      go._dragging = true;
+      go.setDepth(20);
+      this.tweens.add({ targets: go, scale: 1.1, duration: 100 });
+    });
+
     this.input.on('drag', (pointer, go, dragX, dragY) => {
-      go.x = dragX;
-      go.y = dragY;
-      // Highlight drop zone when hovering
-      const { width: w } = this.scale;
-      const dropX2 = w / 2;
-      const near = Math.abs(go.x - dropX2) < 220 && Math.abs(go.y - 570) < 100;
+      go.x = dragX; go.y = dragY;
+      const near = this._isOverDropZone(go.x, go.y);
       this.dropZoneBg.setStrokeStyle(2, near ? 0x88ccff : 0x446688, near ? 1 : 0.5);
     });
 
     this.input.on('dragend', (pointer, go) => {
-      const { width: w } = this.scale;
-      // Check if dropped on drop zone
-      if (Math.abs(go.x - w / 2) < 200 && Math.abs(go.y - 570) < 90) {
-        this.playCard(go.cardData);
-      } else {
-        // Return to hand
-        this.tweens.add({ targets: go, x: go.homeX, y: go.homeY, scale: 1, duration: 200, ease: 'Back.easeOut' });
-        go.setDepth(10);
-      }
+      go._dragging = false;
+      go.setDepth(10);
       this.dropZoneBg.setStrokeStyle(2, 0x446688, 0.5);
+      if (this._isOverDropZone(go.x, go.y)) {
+        this._stageCard(go);
+      } else {
+        // Return to hand position
+        this.tweens.add({ targets: go, x: go.homeX, y: go.homeY, scale: 1, duration: 200, ease: 'Back.easeOut' });
+      }
     });
 
-    // --- Start first round ---
+    // Start first round
     this.time.delayedCall(400, () => this.startRound());
   }
 
-  // ---- Build hand cards at bottom ----
+  // ---- Helper: is a point inside the drop zone? ----
+  _isOverDropZone(x, y) {
+    const dropX = this.scale.width / 2;
+    const dropY = 560;
+    return Math.abs(x - dropX) < 270 && Math.abs(y - dropY) < 90;
+  }
+
+  // ---- Helper: build HP dot indicators ----
+  _buildHPDots(who, startX, y, total, color) {
+    const dots = [];
+    for (let i = 0; i < total; i++) {
+      const dot = this.add.circle(startX + i * 36, y, 13, color, 1).setDepth(4);
+      dots.push(dot);
+    }
+    this[who + 'HPDots'] = dots;
+  }
+
+  // ---- Helper: update HP dot visuals ----
+  _updateHPDots(who, currentHP) {
+    const dots = this[who + 'HPDots'];
+    dots.forEach((dot, i) => {
+      dot.setFillStyle(i < currentHP ? (who === 'enemy' ? 0xcc4466 : 0x4488cc) : 0x222233, i < currentHP ? 1 : 0.3);
+    });
+  }
+
+  // ---- Stage a card into the drop zone ----
+  _stageCard(cardObj) {
+    if (this.roundState !== 'selecting' || this.busy) return;
+    const round = ROUNDS[this.currentRound];
+    const cardId = cardObj.cardData.id;
+
+    // Don't stage the same card twice
+    if (this.selectedCardIds.includes(cardId)) {
+      this.tweens.add({ targets: cardObj, x: cardObj.homeX, y: cardObj.homeY, scale: 1, duration: 200 });
+      return;
+    }
+
+    // Enforce max slots: can't stage more than required
+    if (this.selectedCardIds.length >= round.requiredCount) {
+      this.tweens.add({ targets: cardObj, x: cardObj.homeX, y: cardObj.homeY, scale: 1, duration: 200 });
+      this._showFeedback(`此回合只需選 ${round.requiredCount} 張牌`, '#ffaa44', 1200);
+      return;
+    }
+
+    this.selectedCardIds.push(cardId);
+    this.stagedCards.push(cardObj);
+    cardObj._staged = true;
+
+    // Position staged cards neatly inside the drop zone
+    const dropX = this.scale.width / 2;
+    const dropY = 560;
+    const slotW = 120;
+    const count = this.stagedCards.length;
+    this.stagedCards.forEach((c, i) => {
+      const tx = dropX - ((count - 1) * slotW / 2) + i * slotW;
+      this.tweens.killTweensOf(c);
+      this.tweens.add({ targets: c, x: tx, y: dropY, scale: 0.65, duration: 180, ease: 'Back.easeOut' });
+    });
+
+    // Hide the hint text once a card is staged
+    this.dropZoneHint.setVisible(false);
+
+    // Update confirm button label — shard is a wildcard so always show 確認出牌 if shard is staged
+    const needMore = round.requiredCount - this.selectedCardIds.length;
+    const shardStaged = this.selectedCardIds.includes('resonance_shard');
+    if (!shardStaged && needMore > 0) {
+      this._setConfirmLabel(`還需選 ${needMore} 張`);
+    } else {
+      this._setConfirmLabel('確認出牌');
+    }
+    this._showBtn(this.confirmBtn);
+  }
+
+  // ---- Submit the currently staged cards ----
+  _submitStagedCards() {
+    const round = ROUNDS[this.currentRound];
+    const hasShardStaged = this.selectedCardIds.includes('resonance_shard');
+    if (!hasShardStaged && this.selectedCardIds.length < round.requiredCount) {
+      this._showFeedback(`請再選 ${round.requiredCount - this.selectedCardIds.length} 張牌！`, '#ffaa44', 1200);
+      return;
+    }
+    this._resolveRound([...this.selectedCardIds]);
+  }
+
+  // ---- Resolve a round with the submitted card IDs ----
+  _resolveRound(submittedIds) {
+    if (this.roundState !== 'selecting' || this.busy) return;
+    this.roundState = 'resolving';
+    this.busy = true;
+    this._hideBtn(this.confirmBtn);
+    this.tweens.killTweensOf(this.dropZoneBg);
+    this.dropZoneBg.setAlpha(1);
+
+    const round  = ROUNDS[this.currentRound];
+    // Resonance shard is a wildcard — always correct for any round
+    const result = submittedIds.length === 0 ? 'SKIP'
+      : submittedIds.includes('resonance_shard') ? 'CORRECT'
+      : evaluateSubmission(round, submittedIds);
+
+    this.battleResults.push({ round: this.currentRound, submittedIds, result });
+
+    // ---- Apply HP changes ----
+    if (result === 'CORRECT') {
+      this.enemyHP = Math.max(0, this.enemyHP - 1);
+      this._updateHPDots('enemy', this.enemyHP);
+      this._showFeedback('很好！成功反駁了這個想法！', '#44ff88');
+      this._flashDropZone(0x0c2a18);
+      // Shake elf to signal damage
+      this.tweens.add({ targets: this.elfSprite, x: this.elfSprite.x + 10, duration: 60, yoyo: true, repeat: 4 });
+    } else if (result === 'WRONG') {
+      this.playerHP = Math.max(0, this.playerHP - 1);
+      this._updateHPDots('player', this.playerHP);
+      this._showFeedback('錯誤！請重新思考…', '#ff6666');
+      this._flashDropZone(0x2a0c0c);
+    } else {
+      // SKIP — no HP changes
+      this._showFeedback('沒有出牌，跳過此回合。', '#aaaaaa');
+    }
+
+    // Mark used cards
+    submittedIds.forEach(id => {
+      const card = this.battleCards.find(c => c.id === id);
+      if (card) this.usedCardIds.push(id);
+    });
+
+    // Clear staged state
+    this.selectedCardIds = [];
+    this.stagedCards = [];
+
+    // Fade out submitted card objects
+    this.cardObjects.filter(c => submittedIds.includes(c.cardData?.id))
+      .forEach(c => {
+        this.tweens.add({ targets: c, alpha: 0, scale: 0.5, duration: 350,
+          onComplete: () => c.destroy() });
+      });
+
+    // Check win/lose immediately after HP update
+    const gameOver = this.enemyHP <= 0 || this.playerHP <= 0;
+
+    this.time.delayedCall(gameOver ? 1400 : 2200, () => {
+      if (gameOver) {
+        this.endBattle();
+      } else {
+        this.currentRound++;
+        this.busy = false;
+        this.startRound();
+      }
+    });
+  }
+
+  // ---- Start a round ----
+  startRound() {
+    if (this.currentRound >= ROUNDS.length) { this.endBattle(); return; }
+
+    this.roundState = 'selecting';
+    this.busy = false;
+    this.selectedCardIds = [];
+    this.stagedCards = [];
+
+    const round = ROUNDS[this.currentRound];
+
+    this.roundText.setText(`第 ${this.currentRound + 1} / ${ROUNDS.length} 回合`);
+    this.thoughtText.setText(round.thought);
+    this.thoughtLabel.setText(`【${round.techniqueLabel}】`);
+
+    const need = round.requiredCount;
+    this.instructionText.setText(
+      need === 1 ? '將正確的證據卡拖入中央區域，按確認出牌' : `選擇 ${need} 張正確的證據卡，全部拖入後按確認`
+    );
+
+    this.dropZoneHint.setVisible(true);
+    this._hideBtn(this.confirmBtn);
+
+    // Pulse drop zone
+    this.tweens.add({
+      targets: this.dropZoneBg,
+      alpha: { from: 0.6, to: 1 }, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+    });
+
+    this.buildHandCards();
+
+    this.tweens.add({
+      targets: this.elfSprite, x: this.elfSprite.x - 6,
+      duration: 60, yoyo: true, repeat: 3, ease: 'Sine.easeInOut'
+    });
+  }
+
+  // ---- Build draggable hand cards at the bottom ----
   buildHandCards() {
     this.cardObjects.forEach(c => c.destroy());
     this.cardObjects = [];
 
     const { width, height } = this.scale;
-    // Only show cards not yet used
     const available = this.battleCards.filter(c => !this.usedCardIds.includes(c.id));
-    const cardW = 220;
-    const cardH = 130;
-    const gap = 20;
-    const total = available.length;
-    if (total === 0) return;
+    const cardW = 160, cardH = 220, gap = 24;
+    if (available.length === 0) return;
 
-    const totalW = total * cardW + (total - 1) * gap;
+    const totalW = available.length * cardW + (available.length - 1) * gap;
     const startX = (width - totalW) / 2 + cardW / 2;
-    const cardY = height - 90;
+    const cardY  = height - cardH / 2 - 20;
 
     available.forEach((card, i) => {
       const cx = startX + i * (cardW + gap);
@@ -294,302 +502,154 @@ class DuelScene extends Phaser.Scene {
       container.homeX = cx;
       container.homeY = cardY;
 
-      const isResonance = card.isResonance === true;
-      const typeColor = isResonance ? 0xffcc00 : (TYPE_COLORS[card.type] || 0x888888);
-      const bgFill   = isResonance ? 0x1a1000 : 0x0f1428;
-      const bg = this.add.rectangle(0, 0, cardW, cardH, bgFill, 0.95)
-        .setStrokeStyle(isResonance ? 3 : 2, typeColor, 1)
-        .setInteractive({ useHandCursor: true, draggable: true });
-      container.add(bg);
-
-      // Top strip
-      container.add(this.add.rectangle(0, -cardH / 2 + 7, cardW - 16, 7, typeColor, 1).setOrigin(0.5, 0));
-
-      if (isResonance) {
-        // Crystal image centred in the card
-        const crystalImg = this.add.image(-62, 0, 'starFragment').setDisplaySize(80, 80);
-        container.add(crystalImg);
-        // Name
-        container.add(this.add.text(12, -22, card.name, {
-          fontFamily: '"Microsoft JhengHei", sans-serif',
-          fontSize: '22px', color: '#ffee88', fontStyle: 'bold'
-        }).setOrigin(0, 0.5));
-        // Inscription preview (first 12 chars)
-        const preview = card.inscription ? card.inscription.substring(0, 12) : '';
-        container.add(this.add.text(12, 6, preview, {
-          fontFamily: '"Microsoft JhengHei", sans-serif',
-          fontSize: '16px', color: '#ccbbee'
-        }).setOrigin(0, 0.5));
-        // Permanent badge
-        container.add(this.add.text(12, 36, '永久 · 萬用', {
-          fontFamily: '"Microsoft JhengHei", sans-serif',
-          fontSize: '15px', color: '#aa8844'
-        }).setOrigin(0, 0.5));
-        // Crystal + card pulse
-        this.tweens.add({
-          targets: [bg, crystalImg], alpha: { from: 0.85, to: 1 },
-          duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
-        });
+      if (card.isResonance) {
+        const bg = this.add.rectangle(0, 0, cardW, cardH, 0x1a1000, 0.95).setStrokeStyle(3, 0xffcc00, 1);
+        const img = this.add.image(0, -30, 'starFragment').setDisplaySize(90, 90);
+        container.add([bg, img,
+          this.add.text(0, 40,  card.name, { fontFamily: '"Microsoft JhengHei", sans-serif', fontSize: '20px', color: '#ffee88', fontStyle: 'bold' }).setOrigin(0.5),
+          this.add.text(0, 92, '永久 · 萬用', { fontFamily: '"Microsoft JhengHei", sans-serif', fontSize: '13px', color: '#aa8844' }).setOrigin(0.5)
+        ]);
+        this.tweens.add({ targets: [bg, img], alpha: { from: 0.85, to: 1 }, duration: 800, yoyo: true, repeat: -1 });
       } else {
-        // Normal card name
-        const nameTxt = this.add.text(0, -8, card.name, {
-          fontFamily: '"Microsoft JhengHei", sans-serif',
-          fontSize: '24px', color: '#e0e0e0', fontStyle: 'bold'
-        }).setOrigin(0.5);
-        container.add(nameTxt);
+        const key = 'card_' + card.id;
+        if (this.textures.exists(key)) {
+          container.add(this.add.image(0, 0, key).setDisplaySize(cardW, cardH));
+        } else {
+          const col = TYPE_COLORS[card.type] || 0x888888;
+          container.add([
+            this.add.rectangle(0, 0, cardW, cardH, 0x0f1428, 0.95).setStrokeStyle(2, col, 1),
+            this.add.text(0, 0, card.name, { fontFamily: '"Microsoft JhengHei", sans-serif', fontSize: '20px', color: '#e0e0e0', fontStyle: 'bold' }).setOrigin(0.5)
+          ]);
+        }
       }
 
-      // Drag — container must have setInteractive before setDraggable
-      container.setInteractive(
-        new Phaser.Geom.Rectangle(-cardW / 2, -cardH / 2, cardW, cardH),
-        Phaser.Geom.Rectangle.Contains
-      );
+      container.setInteractive(new Phaser.Geom.Rectangle(-cardW / 2, -cardH / 2, cardW, cardH), Phaser.Geom.Rectangle.Contains);
       this.input.setDraggable(container);
 
-      bg.on('pointerover', () => {
-        if (this.roundState !== 'waiting_card' || this.busy) return;
-        this.tweens.add({ targets: container, scale: 1.08, y: cardY - 12, duration: 120 });
-        bg.setFillStyle(0x1a2a40, 1);
+      container.on('pointerover', () => {
+        if (this.roundState !== 'selecting' || this.busy) return;
+        this.tweens.add({ targets: container, y: cardY - 16, scale: 1.06, duration: 120 });
       });
-      bg.on('pointerout', () => {
-        if (container.x === cx) { // only reset if not being dragged
-          this.tweens.add({ targets: container, scale: 1, y: cardY, duration: 120 });
-          bg.setFillStyle(0x0f1428, 0.95);
-        }
+      container.on('pointerout', () => {
+        if (!container._dragging && !container._staged)
+          this.tweens.add({ targets: container, y: cardY, scale: 1, duration: 120 });
       });
 
-      // Entrance
       container.setAlpha(0).setScale(0.85);
       this.tweens.add({ targets: container, alpha: 1, scale: 1, duration: 280, delay: i * 60, ease: 'Back.easeOut' });
-
       this.cardObjects.push(container);
     });
   }
 
-  // ---- Start a round ----
-  startRound() {
-    if (this.currentRound >= ROUNDS.length) {
-      this.endBattle();
-      return;
-    }
-    this.roundState = 'waiting_card';
-    this.busy = false;
-    const round = ROUNDS[this.currentRound];
-
-    this.roundText.setText(`第 ${this.currentRound + 1} / ${ROUNDS.length} 回合`);
-    this.thoughtText.setText(round.thought);
-    this.thoughtLabel.setText(`【${round.techniqueLabel}】`);
-    this.instructionText.setVisible(true);
-    this.skipBtn.setVisible(true);
-    this.dropZoneHint.setVisible(true);
-
-    // Pulse drop zone
-    this.tweens.add({
-      targets: this.dropZoneBg,
-      alpha: { from: 0.6, to: 1 }, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
-    });
-
-    // Rebuild hand cards (in case prev round used one)
-    this.buildHandCards();
-
-    // Shake elf
-    this.tweens.add({
-      targets: this.elfSprite,
-      x: this.elfSprite.x - 6, duration: 60, yoyo: true, repeat: 3, ease: 'Sine.easeInOut'
-    });
-  }
-
-  // ---- Player plays a card (or null = skip) ----
-  playCard(cardData) {
-    if (this.roundState !== 'waiting_card' || this.busy) return;
-    this.roundState = 'resolving';
-    this.busy = true;
-
-    this.tweens.killTweensOf(this.dropZoneBg);
-    this.dropZoneBg.setAlpha(1);
-    this.instructionText.setVisible(false);
-    this.skipBtn.setVisible(false);
-    this.dropZoneHint.setVisible(false);
-
-    const round = ROUNDS[this.currentRound];
-    let resultType = 'MISS';
-    let cardId = null;
-
-    if (cardData) {
-      cardId = cardData.id;
-
-      if (cardData.isResonance) {
-        // Resonance Shard — always correct, permanent (never consumed)
-        resultType = 'CORRECT';
-        // cardId is NOT pushed to usedCardIds so the card stays in hand
-      } else {
-        this.usedCardIds.push(cardId);
-        resultType = 'CORRECT'; // any evidence card is valid
-      }
-    }
-
-    // Record result
-    this.battleResults.push({ round: this.currentRound, cardId, resultType });
-
-    // Update corruption
-    let delta = CORRUPTION_DELTA[resultType] || 0;
-    if (cardData && cardData.isResonance && resultType === 'CORRECT') delta = -35; // bonus
-    this.corruption = Math.max(0, Math.min(100, this.corruption + delta));
-    this.updateCorruptionBar();
-
-    // Show feedback — special banner for Resonance Card
-    let feedbackStr, feedbackColor;
-    if (cardData && cardData.isResonance) {
-      const insc = cardData.inscription || '希望 堅持 會好的';
-      feedbackStr = `✦ 來自旅行者的祝福 ✦\n${insc}`;
-      feedbackColor = '#ffee88';
-    } else {
-      const feedbackMap = {
-        CORRECT: { text: '很好！成功反駁了這個想法！',  color: '#44ff88' },
-        MISS:    { text: '沒有出牌，侵蝕未變化…',       color: '#ff8866' }
-      };
-      feedbackStr = feedbackMap[resultType].text;
-      feedbackColor = feedbackMap[resultType].color;
-    }
-    this.feedbackText.setText(feedbackStr).setColor(feedbackColor).setAlpha(1).setY(680);
-    this.tweens.add({
-      targets: this.feedbackText,
-      alpha: 0, y: 640, duration: 1400, delay: 600, ease: 'Sine.easeIn',
-      onComplete: () => { this.feedbackText.y = 680; }
-    });
-
-    // Flash drop zone
-    this.tweens.add({
-      targets: this.dropZoneBg,
-      fillColor: resultType === 'CORRECT' ? 0x0c2a18 : resultType === 'PARTIAL' ? 0x1a1a08 : 0x1a0808,
-      duration: 300, yoyo: true
-    });
-
-    // Grey out played card in hand display
-    if (cardData) {
-      const cardObj = this.cardObjects.find(c => c.cardData && c.cardData.id === cardId);
-      if (cardObj) {
-        this.tweens.add({ targets: cardObj, alpha: 0, scale: 0.6, duration: 400, ease: 'Sine.easeIn',
-          onComplete: () => cardObj.destroy() });
-      }
-    }
-
-    // Advance to next round after delay
-    this.time.delayedCall(2000, () => {
-      this.currentRound++;
-      this.busy = false;
-      this.startRound();
-    });
-  }
-
-  // ---- Update corruption bar ----
-  updateCorruptionBar() {
-    const pct = this.corruption / 100;
-    const barMaxW = 360;
-    this.tweens.add({
-      targets: this.corruptionBarFill,
-      displayWidth: Math.max(0, barMaxW * pct),
-      duration: 500, ease: 'Sine.easeOut'
-    });
-    this.corruptionText.setText(`${Math.round(this.corruption)}%`);
-  }
-
-  // ---- End battle after 4 rounds ----
+  // ---- End the battle ----
   endBattle() {
     this.roundState = 'done';
     this.busy = true;
-    this.skipBtn.setVisible(false);
+    this._hideBtn(this.confirmBtn);
 
-    const correctCount = this.battleResults.filter(r => r.resultType === 'CORRECT').length;
-    const totalRounds  = ROUNDS.length;
+    const playerWon   = this.enemyHP <= 0;
+    const outcome     = playerWon ? '子傑恢復理智，負面能量消散了。' : '子傑仍被困住，精靈介入引導反思。';
+    const title       = playerWon ? '勝利！' : '失敗';
+    const titleColor  = playerWon ? '#66ffaa' : '#ff6666';
+    const accentColor = playerWon ? 0x44cc88 : 0xcc4466;
+    const correctCount = this.battleResults.filter(r => r.result === 'CORRECT').length;
 
-    let outcome, outcomeColor, outcomeDesc;
-    if (correctCount === 4) {
-      outcome     = '完美！';
-      outcomeColor = '#66ffaa';
-      outcomeDesc  = '你精準地反駁了子傑所有扭曲的思維，他開始重新看待自己。';
-    } else if (correctCount >= 2) {
-      outcome     = '成功';
-      outcomeColor = '#88ccff';
-      outcomeDesc  = '你成功幫助子傑釐清了大部分的負面想法。';
-    } else if (correctCount >= 1) {
-      outcome     = '部分成功';
-      outcomeColor = '#ffcc44';
-      outcomeDesc  = '你幫助了子傑，但還有一些扭曲思維未被完全消除。';
-    } else {
-      outcome     = '失敗';
-      outcomeColor = '#ff6666';
-      outcomeDesc  = '子傑的負面想法仍然根深柢固，需要重新嘗試。';
-    }
-
-    // Save result
     localStorage.setItem('battleResult', JSON.stringify({
-      correctCount, totalRounds, results: this.battleResults, outcome
+      playerWon, correctCount, totalRounds: ROUNDS.length,
+      results: this.battleResults
     }));
 
     const { width, height } = this.scale;
+    this.tweens.add({ targets: this.resultOverlay, alpha: 0.75, duration: 700 });
 
-    // Dim overlay
-    this.tweens.add({ targets: this.resultOverlay, alpha: 0.7, duration: 800 });
+    this.time.delayedCall(500, () => {
+      if (playerWon) localStorage.setItem('afterShardCreate', 'chatbot.html');
+      const nextUrl   = playerWon ? 'shard_create.html' : 'prepare.html';
+      const nextLabel = playerWon ? '繼續 →' : '重新準備';
 
-    this.resultTitle.setText(outcome).setColor(outcomeColor);
-    this.resultSub.setText(outcomeDesc);
-    this.resultScore.setText(`正確反駁: ${correctCount} / ${totalRounds}  ·  最終侵蝕值: ${Math.round(this.corruption)}%`);
+      const panelW = 860;
+      const panelH = 420;
+      const popup  = this.add.container(width / 2, height / 2 + 60).setDepth(45).setAlpha(0);
 
-    this.tweens.add({
-      targets: [this.resultTitle, this.resultSub, this.resultScore],
-      alpha: 1, duration: 600, delay: 500, ease: 'Sine.easeOut'
-    });
+      const panelBg   = this.add.rectangle(0, 0, panelW, panelH, 0x07101e, 0.97)
+        .setStrokeStyle(2, accentColor, 0.9);
+      const accentBar = this.add.rectangle(0, -panelH / 2 + 4, panelW - 60, 4, accentColor, 1)
+        .setOrigin(0.5, 0.5);
 
-    // Continue button
-    this.time.delayedCall(1400, () => {
-      const isWin = correctCount >= 1;
-      // After a win, go to shard creation page; set return target so it knows where to go after
-      if (isWin) localStorage.setItem('afterShardCreate', 'chatbot.html');
-      const nextUrl = isWin ? 'shard_create.html' : 'prepare.html';
-      const nextLabel = isWin ? '繼續 →' : '重新準備';
-
-      const btn = this.add.container(width / 2, height / 2 + 130).setDepth(50).setAlpha(0);
-      const btnBg = this.add.rectangle(0, 0, 340, 76, 0x1a3a5c, 0.95)
-        .setStrokeStyle(1, 0x4488cc, 0.7)
-        .setInteractive({ useHandCursor: true });
-      const btnTxt = this.add.text(0, 0, nextLabel, {
+      const titleTxt = this.add.text(0, -panelH / 2 + 70, title, {
         fontFamily: '"Microsoft JhengHei", sans-serif',
-        fontSize: '30px', color: '#a0c4ff'
+        fontSize: '64px', color: titleColor, fontStyle: 'bold'
       }).setOrigin(0.5);
-      btn.add([btnBg, btnTxt]);
-      this.tweens.add({ targets: btn, alpha: 1, duration: 400 });
 
-      btnBg.on('pointerover', () => { btnBg.setFillStyle(0x264d73, 1); this.tweens.add({ targets: btn, scale: 1.05, duration: 100 }); });
-      btnBg.on('pointerout',  () => { btnBg.setFillStyle(0x1a3a5c, 0.95); this.tweens.add({ targets: btn, scale: 1, duration: 100 }); });
+      const outcomeTxt = this.add.text(0, -panelH / 2 + 168, outcome, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '28px', color: '#99aabb'
+      }).setOrigin(0.5);
+
+      const scoreTxt = this.add.text(0, -panelH / 2 + 230,
+        `正確回合: ${correctCount} / ${ROUNDS.length}  ·  敵方剩餘生命: ${this.enemyHP}  ·  玩家剩餘生命: ${this.playerHP}`, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '22px', color: '#a0c4ff'
+      }).setOrigin(0.5);
+
+      const btnBg  = this.add.rectangle(0, panelH / 2 - 66, 320, 64, 0x1a3a5c, 0.95)
+        .setStrokeStyle(1, 0x4488cc, 0.8).setInteractive({ useHandCursor: true });
+      const btnTxt = this.add.text(0, panelH / 2 - 66, nextLabel, {
+        fontFamily: '"Microsoft JhengHei", sans-serif', fontSize: '28px', color: '#a0c4ff'
+      }).setOrigin(0.5);
+
+      popup.add([panelBg, accentBar, titleTxt, outcomeTxt, scoreTxt, btnBg, btnTxt]);
+      this.tweens.add({ targets: popup, alpha: 1, y: height / 2, duration: 480, ease: 'Back.easeOut' });
+
+      btnBg.on('pointerover', () => btnBg.setFillStyle(0x264d73, 1));
+      btnBg.on('pointerout',  () => btnBg.setFillStyle(0x1a3a5c, 0.95));
       btnBg.on('pointerdown', () => { window.location.href = nextUrl; });
     });
   }
 
-  // ---- Small utility button ----
-  createSmallButton(x, y, label, callback) {
+  // ---- Flash the drop zone briefly ----
+  _flashDropZone(color) {
+    this.tweens.add({ targets: this.dropZoneBg, fillColor: color, duration: 300, yoyo: true });
+  }
+
+  // ---- Show transient feedback text ----
+  _showFeedback(text, color, duration = 1600) {
+    this.feedbackText.setText(text).setColor(color).setAlpha(1).setY(720);
+    this.tweens.add({ targets: this.feedbackText, alpha: 0, y: 680, duration: duration * 0.6, delay: duration * 0.4, ease: 'Sine.easeIn',
+      onComplete: () => { this.feedbackText.y = 720; }
+    });
+  }
+
+  // ---- Build a small text button ----
+  _makeButton(x, y, label, callback) {
     const btn = this.add.container(x, y).setDepth(6);
-    const bg = this.add.rectangle(0, 0, 240, 56, 0x1a2a3c, 0.88)
-      .setStrokeStyle(1, 0x446688, 0.6)
-      .setInteractive({ useHandCursor: true });
-    const txt = this.add.text(0, 0, label, {
-      fontFamily: '"Microsoft JhengHei", sans-serif',
-      fontSize: '22px', color: '#7799aa'
-    }).setOrigin(0.5);
+    const bg  = this.add.rectangle(0, 0, 240, 56, 0x1a2a3c, 0.88)
+      .setStrokeStyle(1, 0x446688, 0.6).setInteractive({ useHandCursor: true });
+    const txt = this.add.text(0, 0, label, { fontFamily: '"Microsoft JhengHei", sans-serif', fontSize: '22px', color: '#7799aa' }).setOrigin(0.5);
     btn.add([bg, txt]);
-    bg.on('pointerover', () => { bg.setFillStyle(0x263a50, 1); });
-    bg.on('pointerout',  () => { bg.setFillStyle(0x1a2a3c, 0.88); });
+    btn._label = txt;
+    btn._bg = bg;
+    bg.on('pointerover', () => bg.setFillStyle(0x263a50, 1));
+    bg.on('pointerout',  () => bg.setFillStyle(0x1a2a3c, 0.88));
     bg.on('pointerdown', () => callback());
     return btn;
   }
+
+  // ---- Update confirm button label text ----
+  _setConfirmLabel(text) {
+    if (this.confirmBtn && this.confirmBtn._label) this.confirmBtn._label.setText(text);
+  }
+
+  // ---- Show / hide a _makeButton container with proper input state ----
+  _showBtn(btn) { btn.setVisible(true);  if (btn._bg) btn._bg.setInteractive({ useHandCursor: true }); }
+  _hideBtn(btn) { btn.setVisible(false); if (btn._bg) btn._bg.disableInteractive(); }
 
   toggleMusic() {
     this.musicOn = !this.musicOn;
     this.musicBtn.setAlpha(this.musicOn ? 1 : 0.4);
     if (this.musicOn) {
       if (!this.bgm.isPlaying) {
-        this.bgm.volume = 0;
-        this.bgm.play();
+        this.bgm.volume = 0; this.bgm.play();
         this.tweens.add({ targets: this.bgm, volume: 0.35, duration: 1500 });
         const fadeMs = 1400;
         this.bgmLoopTimer = this.time.delayedCall(
@@ -601,10 +661,7 @@ class DuelScene extends Phaser.Scene {
     } else {
       if (this.bgmLoopTimer) { this.bgmLoopTimer.destroy(); this.bgmLoopTimer = null; }
       this.tweens.killTweensOf(this.bgm);
-      this.tweens.add({
-        targets: this.bgm, volume: 0, duration: 800,
-        onComplete: () => { if (!this.musicOn) this.bgm.stop(); }
-      });
+      this.tweens.add({ targets: this.bgm, volume: 0, duration: 800, onComplete: () => { if (!this.musicOn) this.bgm.stop(); } });
     }
   }
 }
@@ -616,14 +673,29 @@ const config = {
   height: 1080,
   parent: document.body,
   backgroundColor: '#000000',
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  },
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [DuelScene]
 };
 
 const game = new Phaser.Game(config);
+
+/* ---- Tutorial ---- */
+if (typeof TutorialSystem !== 'undefined') {
+  TutorialSystem.autoStart([
+    {
+      title: '認知對決開始！',
+      text: '子傑被困在杳曲的負面想法中。你的任務是用收集到的證據卡來反駁這些想法，幫助他恢復理智。'
+    },
+    {
+      title: '拖放證據卡',
+      text: '畫面中央的思泡顯示子傑的杳曲想法。將底部的證據卡拖入中央的放置區域，然後按「確認出牌」提交你的答案。'
+    },
+    {
+      title: '生命値系統',
+      text: '答對了，敵方生命減少一格；答錯了，玩家生命減少一格。將敵方所有生命降到零即可勝利！部分回合需要選擇多張證據卡，全部拖入後再確認。'
+    }
+  ], 'duel');
+}
 </script>
 </body>
 </html>

@@ -70,5 +70,19 @@
     new Phaser.Game(config);
   </script>
 
+  <script src="tutorial.js"></script>
+  <script>
+  TutorialSystem.autoStart([
+    {
+      title: '歡迎來到牽星絮語！',
+      text: '這裏是關卡選擇頁面。這段旅程分為多個章節，每個章節都包含一段本真故事、需要收集的線索，以及一場認知對決。'
+    },
+    {
+      title: '選擇你的章節',
+      text: '點擊地圖上的章節進入對應的場景。建議按照順序完成各章節，解鎖完整的星際旅程。每完成一個章節，你將更深入地理解子傑的內心世界。'
+    }
+  ], 'level_select');
+  </script>
+
 </body>
 </html>

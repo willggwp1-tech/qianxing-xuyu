@@ -4,12 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>牽星絮語 — 創造星魂碎片</title>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Fredoka+One&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background: #05080f;
+      background: url('assets/background/background.png') center/cover no-repeat fixed;
       color: #e0e0e0;
+      font-family: 'Comfortaa', "Microsoft JhengHei", 'PingFang TC', cursive;
       font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
       min-height: 100vh;
       display: flex;
@@ -333,6 +335,23 @@ document.getElementById('createBtn').addEventListener('click', createShard);
 buildColumn('A', 'colA');
 buildColumn('B', 'colB');
 buildColumn('C', 'colC');
+</script>
+<script src="tutorial.js"></script>
+<script>
+TutorialSystem.autoStart([
+  {
+    title: '創造星魂碎片！',
+    text: '恭喜你完成對決！現在，你可以創造一片屬於自己的「星魂碎片」，將你的正能量傳遞給一位素未謀面的旅人。'
+  },
+  {
+    title: '組合你的銘文',
+    text: '從三個列表中各選一個詞語，組合成一句治癒的銘文。你的選擇將成為某人在困境中的一束光。'
+  },
+  {
+    title: '送出你的心意',
+    text: '選好詞語後，按「❖ 創造碎片」即可完成。你的星魂碎片將進入星圖網絡，與其他旅人的碎片相遇，建立連結。'
+  }
+], 'shard_create');
 </script>
 </body>
 </html>

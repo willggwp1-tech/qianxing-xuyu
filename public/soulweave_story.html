@@ -187,6 +187,21 @@
       cursor: pointer;
     }
 
+    /* --- Image UI buttons (autoplay / skip — matches prologue) --- */
+    .ui-img-btn {
+      position: fixed;
+      top: 8px;
+      width: 220px;
+      height: 80px;
+      cursor: pointer;
+      z-index: 20;
+      opacity: 0.95;
+      transition: filter 0.15s;
+    }
+    .ui-img-btn:hover { filter: brightness(1.25); }
+    #autoplayBtnImg  { right: 240px; }
+    #skipBtnImg      { right: 10px; }
+
     /* --- Screen transition overlay --- */
     .screen-overlay {
       position: fixed;
@@ -207,8 +222,9 @@
 
 <canvas id="starfield"></canvas>
 
-<button class="log-toggle" id="autoplayBtn" style="right: 9rem;">▶ 自動播放</button>
-<button class="log-toggle" id="logToggle">對話記錄</button>
+<img id="autoplayBtnImg" class="ui-img-btn" src="assets/buttons/autoplay.png" alt="自動播放" style="opacity:0.45;">
+<img id="skipBtnImg"    class="ui-img-btn" src="assets/buttons/skip.png"    alt="跳過">
+<button class="log-toggle" id="logToggle" style="top:1.2rem;left:1.5rem;right:auto;">對話記錄</button>
 
 <div class="log-panel" id="logPanel">
   <h2>對話記錄</h2>
@@ -532,25 +548,34 @@ function scheduleAutoAdvance() {
 
 function toggleAutoplay() {
   autoplay = !autoplay;
-  const btn = document.getElementById('autoplayBtn');
+  const img = document.getElementById('autoplayBtnImg');
+  img.style.opacity = autoplay ? '1' : '0.45';
   if (autoplay) {
-    btn.textContent = '⏸ 自動播放';
-    btn.style.color = '#ffcc44';
-    btn.style.borderColor = 'rgba(255, 204, 68, 0.3)';
     if (!isTyping && !choicesArea.classList.contains('visible')) scheduleAutoAdvance();
   } else {
-    btn.textContent = '▶ 自動播放';
-    btn.style.color = '';
-    btn.style.borderColor = '';
     if (autoplayTimer) { clearTimeout(autoplayTimer); autoplayTimer = null; }
   }
 }
+
+function skipToEnd() {
+  if (autoplayTimer) { clearTimeout(autoplayTimer); autoplayTimer = null; }
+  autoplay = false;
+  document.getElementById('autoplayBtnImg').style.opacity = '0.45';
+  // Jump to the last dialogue entry (the launch choice)
+  const lastIdx = DIALOGUE.length - 1;
+  currentIndex = lastIdx;
+  showEntry(DIALOGUE[lastIdx]);
+}
+
+// ---- Wire image buttons ----
+document.getElementById('autoplayBtnImg').addEventListener('click', (e) => { e.stopPropagation(); toggleAutoplay(); });
+document.getElementById('skipBtnImg').addEventListener('click', (e) => { e.stopPropagation(); skipToEnd(); });
 
 // ---- Advance on click ----
 document.addEventListener('click', (e) => {
   // Ignore if log is open or clicking buttons
   if (logPanel.classList.contains('open')) return;
-  if (e.target.closest('.choice-btn') || e.target.closest('.log-toggle')) return;
+  if (e.target.closest('.choice-btn') || e.target.closest('.log-toggle') || e.target.closest('.ui-img-btn')) return;
 
   if (isTyping) {
     skipTypewriter();
@@ -597,10 +622,7 @@ logClose.addEventListener('click', (e) => {
   logPanel.classList.remove('open');
 });
 
-document.getElementById('autoplayBtn').addEventListener('click', (e) => {
-  e.stopPropagation();
-  toggleAutoplay();
-});
+// autoplayBtnImg and skipBtnImg wired above
 
 // ---- Keyboard support ----
 document.addEventListener('keydown', (e) => {
@@ -615,11 +637,8 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ---- Check if already completed ----
-if (localStorage.getItem('soulweaveStoryDone') === 'true') {
-  // Already done — go straight to soulweave
-  window.location.href = 'soulweave.html';
-} else {
+// ---- Always play the story ----
+{
   // Personalise the launch prompt if the player has a created shard
   const pendingShard = getUndonatedShard();
   if (pendingShard) {

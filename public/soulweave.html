@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>牽星絮語 — 星圖網絡</title>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Fredoka+One&display=swap" rel="stylesheet">
   <script>
     // Gate: redirect to story if not completed
     if (localStorage.getItem('soulweaveStoryDone') !== 'true') {
@@ -15,7 +16,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+      font-family: 'Comfortaa', "Microsoft JhengHei", "Noto Sans TC", cursive;
       background: #060a14;
       color: #d0d8e8;
       min-height: 100vh;
@@ -604,6 +605,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadGraph();
 });
+</script>
+<script src="tutorial.js"></script>
+<script>
+TutorialSystem.autoStart([
+  {
+    title: '歡迎來到星圖網絡！',
+    text: '這裏記錄著所有旅人的足跡。每一顏閃爍的星星，都代表一位在旅途中分享了星魂碎片的旅人。'
+  },
+  {
+    title: '星際連結',
+    text: '當兩位旅人透過碎片互相鼓勵，他們的星星之間就會出現連結線。星星越亮，代表這位旅人越活躍；連結越多，互助越深地。'
+  },
+  {
+    title: '探索星圖',
+    text: '點擊任何一顏星星，可以查看那位旅人的資訊和他們的銘文。你自己的星星也在這裏，你並不孤單。'
+  }
+], 'soulweave');
 </script>
 </body>
 </html>

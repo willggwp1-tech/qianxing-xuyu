@@ -11,6 +11,7 @@
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script src="tutorial.js"></script>
 <script>
 /* ============================================================
    牽星絮語 — 準備界面 (Prepare Scene) — Phaser 3
@@ -49,6 +50,14 @@ class PrepareScene extends Phaser.Scene {
 
   preload() {
     this.load.image('bg', 'assets/background/background.png');
+    this.load.image('starFragment', 'assets/cards/star_fragment.png');
+    // Evidence card images
+    this.load.image('card_ev_classmate_words',  'assets/cards/Card1.png');
+    this.load.image('card_ev_dinosaur_model',   'assets/cards/Card2.png');
+    this.load.image('card_ev_account_book',     'assets/cards/Card3.png');
+    this.load.image('card_ev_study_plan',       'assets/cards/Card4.png');
+    this.load.image('card_ev_drawer',           'assets/cards/Card5.png');
+    this.load.image('card_ev_math_notebook',    'assets/cards/Card6.png');
   }
 
   create() {
@@ -76,6 +85,7 @@ class PrepareScene extends Phaser.Scene {
 
     // Evidence cards — two rows of 3
     this.buildEvidenceCards();
+    this.buildShardDisplay();
 
     // Buttons
     this.createButton(width / 2 + 230, height - 58, '開始對決 →', () => {
@@ -89,12 +99,12 @@ class PrepareScene extends Phaser.Scene {
   buildEvidenceCards() {
     const { width } = this.scale;
     const cardW = 280;
-    const cardH = 320;
+    const cardH = 380;
     const gap   = 36;
     const cols  = 3;
     const totalW = cols * cardW + (cols - 1) * gap;
     const startX = (width - totalW) / 2 + cardW / 2;
-    const rowYs  = [360, 720];
+    const rowYs  = [380, 760];
 
     ALL_EVIDENCE.forEach((ev, i) => {
       const col = i % cols;
@@ -104,49 +114,37 @@ class PrepareScene extends Phaser.Scene {
 
       const isCollected = this.collected.includes(ev.id);
       const typeColor   = isCollected ? (TYPE_COLORS[ev.type] || 0x888888) : 0x333344;
-      const fillColor   = isCollected ? 0x0f1428 : 0x080c18;
-
       const container = this.add.container(cx, cy).setDepth(5).setSize(cardW, cardH);
 
-      const cardBg = this.add.rectangle(0, 0, cardW, cardH, fillColor, 0.95)
-        .setStrokeStyle(2, typeColor, isCollected ? 1 : 0.4);
-      container.add(cardBg);
-
-      container.add(
-        this.add.rectangle(0, -cardH / 2 + 10, cardW - 20, 8, typeColor, isCollected ? 1 : 0.3)
-          .setOrigin(0.5, 0)
-      );
-
       if (isCollected) {
-        container.add(this.add.text(0, -cardH / 2 + 30, TYPE_LABELS[ev.type] || '', {
-          fontFamily: '"Microsoft JhengHei", sans-serif',
-          fontSize: '20px', color: '#8899aa'
-        }).setOrigin(0.5, 0));
-
-        container.add(this.add.text(0, -30, ev.name, {
-          fontFamily: '"Microsoft JhengHei", sans-serif',
-          fontSize: '32px', color: '#e8f0ff', fontStyle: 'bold'
-        }).setOrigin(0.5));
-
-        container.add(this.add.text(0, 40, ev.desc, {
-          fontFamily: '"Microsoft JhengHei", sans-serif',
-          fontSize: '19px', color: '#7799aa',
-          wordWrap: { width: cardW - 40 }, align: 'center'
-        }).setOrigin(0.5, 0));
-
+        const cardKey = 'card_' + ev.id;
+        if (this.textures.exists(cardKey)) {
+          const cardImg = this.add.image(0, 0, cardKey).setDisplaySize(cardW, cardH);
+          container.add(cardImg);
+        } else {
+          // Fallback plain card
+          const cardBg = this.add.rectangle(0, 0, cardW, cardH, 0x0f1428, 0.95)
+            .setStrokeStyle(2, typeColor, 1);
+          container.add(cardBg);
+          container.add(this.add.text(0, -10, ev.name, {
+            fontFamily: '"Microsoft JhengHei", sans-serif',
+            fontSize: '28px', color: '#e8f0ff', fontStyle: 'bold'
+          }).setOrigin(0.5));
+        }
         container.setInteractive(
           new Phaser.Geom.Rectangle(-cardW / 2, -cardH / 2, cardW, cardH),
           Phaser.Geom.Rectangle.Contains
         );
         container.on('pointerover', () => {
-          this.tweens.add({ targets: container, scale: 1.04, y: cy - 8, duration: 120, ease: 'Sine.easeOut' });
-          cardBg.setStrokeStyle(3, typeColor, 1);
+          this.tweens.add({ targets: container, scale: 1.05, y: cy - 10, duration: 120, ease: 'Sine.easeOut' });
         });
         container.on('pointerout', () => {
           this.tweens.add({ targets: container, scale: 1, y: cy, duration: 120, ease: 'Sine.easeOut' });
-          cardBg.setStrokeStyle(2, typeColor, 1);
         });
       } else {
+        const cardBg = this.add.rectangle(0, 0, cardW, cardH, 0x080c18, 0.95)
+          .setStrokeStyle(2, 0x333344, 0.4);
+        container.add(cardBg);
         container.add(this.add.rectangle(0, 0, cardW, cardH, 0x000000, 0.5));
         container.add(this.add.text(0, -10, '🔒', { fontSize: '44px' }).setOrigin(0.5));
         container.add(this.add.text(0, 50, '尚未收集', {
@@ -158,6 +156,73 @@ class PrepareScene extends Phaser.Scene {
       container.setAlpha(0).setScale(0.88);
       this.tweens.add({ targets: container, alpha: 1, scale: 1, duration: 320, delay: i * 60, ease: 'Back.easeOut' });
     });
+  }
+
+  buildShardDisplay() {
+    let shardData = null;
+    try { shardData = JSON.parse(localStorage.getItem('collectedShard') || 'null'); } catch {}
+    if (!shardData) return;
+
+    const cx = 1700;
+    const cy = 540;
+    const cardW = 260;
+    const cardH = 360;
+    const hasShard = true;
+    const typeColor = hasShard ? 0xcc88ff : 0x333344;
+
+    const container = this.add.container(cx, cy).setDepth(5).setSize(cardW, cardH);
+
+    const cardBg = this.add.rectangle(0, 0, cardW, cardH, hasShard ? 0x0c0a1e : 0x080c18, 0.95)
+      .setStrokeStyle(hasShard ? 3 : 2, typeColor, hasShard ? 1 : 0.4);
+    container.add(cardBg);
+
+    container.add(
+      this.add.rectangle(0, -cardH / 2 + 10, cardW - 20, 8, typeColor, hasShard ? 1 : 0.3)
+        .setOrigin(0.5, 0)
+    );
+
+    if (hasShard) {
+      container.add(this.add.text(0, -cardH / 2 + 26, '星魂碎片', {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '20px', color: '#aa88cc'
+      }).setOrigin(0.5, 0));
+
+      const crystalImg = this.add.image(0, -55, 'starFragment').setDisplaySize(110, 110);
+      container.add(crystalImg);
+      this.tweens.add({ targets: crystalImg, alpha: { from: 0.75, to: 1 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+      container.add(this.add.text(0, 44, `「${shardData.inscription || ''}」`, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '20px', color: '#e0d0ff', fontStyle: 'italic',
+        wordWrap: { width: cardW - 30 }, align: 'center'
+      }).setOrigin(0.5, 0));
+
+      container.add(this.add.text(0, 122, `— ${shardData.creatorName || '旅行者'}`, {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '19px', color: '#9999bb'
+      }).setOrigin(0.5));
+
+      container.add(this.add.text(0, 152, '可在對決中使用', {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '17px', color: '#665577'
+      }).setOrigin(0.5));
+    } else {
+      container.add(this.add.text(0, -10, '❆', { fontSize: '42px', color: '#333344' }).setOrigin(0.5));
+      container.add(this.add.text(0, 46, '尚未獲得\n星魂碎片', {
+        fontFamily: '"Microsoft JhengHei", sans-serif',
+        fontSize: '21px', color: '#334455', align: 'center'
+      }).setOrigin(0.5, 0));
+    }
+
+    // Section label above the card
+    this.add.text(cx, cy - cardH / 2 - 34, '星魂碎片', {
+      fontFamily: '"Microsoft JhengHei", sans-serif',
+      fontSize: '26px', color: hasShard ? '#aa88cc' : '#334455'
+    }).setOrigin(0.5, 1).setDepth(5);
+
+    // Entrance (delayed slightly after evidence cards finish)
+    container.setAlpha(0).setScale(0.88);
+    this.tweens.add({ targets: container, alpha: 1, scale: 1, duration: 360, delay: 480, ease: 'Back.easeOut' });
   }
 
   createButton(x, y, label, callback) {
@@ -175,6 +240,24 @@ class PrepareScene extends Phaser.Scene {
     bg.on('pointerdown', () => callback());
     return btn;
   }
+}
+
+/* ---- Tutorial ---- */
+if (typeof TutorialSystem !== 'undefined') {
+  TutorialSystem.autoStart([
+    {
+      title: '對決前的準備！',
+      text: '在探索章節的過程中，你收集到了重要的證據卡。這些卡牌記錄了你在故事中發現的關鍵線索。'
+    },
+    {
+      title: '了解你的證據',
+      text: '仔細查看你收集到的每張證據卡，思考它們揭示了什麼真相。鎖著的卡牌代表你還未發現的線索。'
+    },
+    {
+      title: '準備出發！',
+      text: '在接下來的認知對決中，你需要用這些證據來反駁子傑的杳曲思維。確認你已準備好，就按「開始對決」！'
+    }
+  ], 'prepare');
 }
 
 const config = {
