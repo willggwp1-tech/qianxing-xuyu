@@ -413,7 +413,31 @@ class DuelScene extends Phaser.Scene {
       this._showFeedback('沒有出牌，跳過此回合。', '#aaaaaa');
     }
 
-    // Mark used cards
+    // On a wrong answer — return cards to hand and retry the same round
+    if (result === 'WRONG') {
+      // Clear staged flags so cards behave normally again
+      this.selectedCardIds = [];
+      this.stagedCards = [];
+      this.cardObjects.forEach(c => { c._staged = false; c._dragging = false; });
+
+      this.time.delayedCall(1600, () => {
+        this.roundState = 'selecting';
+        this.busy = false;
+        // Reposition hand cards back to their home positions
+        this.buildHandCards();
+        this.dropZoneHint.setVisible(true);
+        this._hideBtn(this.confirmBtn);
+        // Restart the drop-zone pulse
+        this.tweens.killTweensOf(this.dropZoneBg);
+        this.tweens.add({
+          targets: this.dropZoneBg,
+          alpha: { from: 0.6, to: 1 }, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+        });
+      });
+      return;
+    }
+
+    // Mark used cards (only for correct / skip)
     submittedIds.forEach(id => {
       const card = this.battleCards.find(c => c.id === id);
       if (card) this.usedCardIds.push(id);

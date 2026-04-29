@@ -468,7 +468,27 @@ app.post('/api/fragments/generate', async (req, res) => {
     };
 
     const result = await db.collection('fragment_originals').insertOne(shard);
-    res.status(201).json({ message: '星魂碎片已創建 Shard created', shardId: result.insertedId, inscription });
+    const insertedId = result.insertedId;
+
+    // Auto-donate to the public pool so other players can encounter it in chapters
+    await db.collection('fragment_originals').updateOne({ _id: insertedId }, { $set: { isDonated: true, donatedAt: now } });
+    await db.collection('public_fragments').insertOne({
+      originalId: insertedId,
+      inscription,
+      words: [wordA, wordB, wordC],
+      creatorName: username,
+      donatedBy: user._id,
+      sourceChapter: sourceChapter || 1,
+      distortionType: distortionType || '',
+      donatedAt: now
+    });
+    await db.collection('players').updateOne(
+      { username },
+      { $inc: { totalDonated: 1 }, $set: { updatedAt: now } },
+      { upsert: true }
+    );
+
+    res.status(201).json({ message: '星魂碎片已創建 Shard created', shardId: insertedId, inscription });
   } catch (err) {
     console.error('Fragment generate error:', err);
     res.status(500).json({ error: '伺服器錯誤 Server error' });
