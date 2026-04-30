@@ -311,7 +311,41 @@ app.get('/api/network', async (req, res) => {
         };
       });
 
-    res.json({ nodes, links: relevantLinks, myId });
+    // Always add Morpheia as a special node connected to every player
+    const MORPHEIA_ID = 'morpheia-system';
+    const morpheiaNode = {
+      id: MORPHEIA_ID,
+      name: 'Morpheia',
+      activity: nodes.length,
+      sampleMessage: '我在這裡陪你。',
+      isMe: false,
+      isMorpheia: true
+    };
+
+    // Add Morpheia + ensure current user appears even if they have no other connections
+    const allNodes = [...nodes];
+    if (myId && !allNodes.find(n => n.id === myId)) {
+      const meUser = users.find(u => u._id.toString() === myId);
+      if (meUser) {
+        allNodes.push({
+          id: myId,
+          name: meUser.username,
+          activity: activityCount[myId] || 0,
+          sampleMessage: sampleMessages[myId] || '',
+          isMe: true
+        });
+      }
+    }
+    allNodes.push(morpheiaNode);
+
+    // Link every player node to Morpheia
+    const morpheiaLinks = allNodes
+      .filter(n => !n.isMorpheia)
+      .map(n => ({ source: MORPHEIA_ID, target: n.id, weight: 1 }));
+
+    const finalLinks = [...relevantLinks, ...morpheiaLinks];
+
+    res.json({ nodes: allNodes, links: finalLinks, myId });
   } catch (err) {
     console.error('Network API error:', err);
     res.status(500).json({ error: '伺服器錯誤 Server error' });

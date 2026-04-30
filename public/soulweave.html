@@ -400,11 +400,14 @@ async function loadGraph() {
 
   const myId = networkData.myId;
 
-  // Pin "me" node at center
+  // Pin "me" node at center, Morpheia slightly above center
   for (const n of networkData.nodes) {
     if (n.isMe) {
       n.fx = cx;
       n.fy = cy;
+    } else if (n.isMorpheia) {
+      n.fx = cx;
+      n.fy = cy - 160;
     }
   }
 
@@ -416,6 +419,11 @@ async function loadGraph() {
   const filter = defs.append('filter').attr('id', 'glow-me');
   filter.append('feGaussianBlur').attr('stdDeviation', 6).attr('result', 'blur');
   filter.append('feComposite').attr('in', 'SourceGraphic').attr('in2', 'blur').attr('operator', 'over');
+
+  // Glow filter for Morpheia
+  const filterM = defs.append('filter').attr('id', 'glow-morpheia');
+  filterM.append('feGaussianBlur').attr('stdDeviation', 10).attr('result', 'blur');
+  filterM.append('feComposite').attr('in', 'SourceGraphic').attr('in2', 'blur').attr('operator', 'over');
 
   const simulation = d3.forceSimulation(networkData.nodes)
     .force('link', d3.forceLink(networkData.links).id(d => d.id).distance(120))
@@ -429,36 +437,48 @@ async function loadGraph() {
     .attr('stroke', d => {
       const s = d.source.id || d.source;
       const t = d.target.id || d.target;
+      if (s === 'morpheia-system' || t === 'morpheia-system') return '#c084fc';
       return (s === myId || t === myId) ? '#5ab0ee' : '#4a6a8a';
     })
     .attr('stroke-opacity', d => {
       const s = d.source.id || d.source;
       const t = d.target.id || d.target;
+      if (s === 'morpheia-system' || t === 'morpheia-system') return 0.25;
       return (s === myId || t === myId) ? 0.45 : 0.15;
     })
-    .attr('stroke-width', d => Math.min(3, Math.max(1, d.weight)));
+    .attr('stroke-width', d => {
+      const s = d.source.id || d.source;
+      const t = d.target.id || d.target;
+      if (s === 'morpheia-system' || t === 'morpheia-system') return 2;
+      return Math.min(3, Math.max(1, d.weight));
+    })
+    .attr('stroke-dasharray', d => {
+      const s = d.source.id || d.source;
+      const t = d.target.id || d.target;
+      return (s === 'morpheia-system' || t === 'morpheia-system') ? '4 4' : null;
+    });
 
   // Node circles
   const node = svg.append('g')
     .selectAll('circle').data(networkData.nodes).join('circle')
-    .attr('r', d => d.isMe ? 14 : nodeRadius(d))
-    .attr('fill', d => d.isMe ? '#ffd866' : '#5a9fd4')
-    .attr('fill-opacity', d => d.isMe ? 0.9 : 0.3 + Math.min(0.7, (d.activity || 0) * 0.08))
-    .attr('stroke', d => d.isMe ? '#ffe6a0' : '#7ac0ff')
-    .attr('stroke-width', d => d.isMe ? 2.5 : 0.5)
-    .attr('stroke-opacity', d => d.isMe ? 0.9 : 0.3)
-    .attr('filter', d => d.isMe ? 'url(#glow-me)' : null)
+    .attr('r', d => d.isMorpheia ? 18 : d.isMe ? 14 : nodeRadius(d))
+    .attr('fill', d => d.isMorpheia ? '#a855f7' : d.isMe ? '#ffd866' : '#5a9fd4')
+    .attr('fill-opacity', d => d.isMorpheia ? 0.85 : d.isMe ? 0.9 : 0.3 + Math.min(0.7, (d.activity || 0) * 0.08))
+    .attr('stroke', d => d.isMorpheia ? '#e879f9' : d.isMe ? '#ffe6a0' : '#7ac0ff')
+    .attr('stroke-width', d => d.isMorpheia ? 2.5 : d.isMe ? 2.5 : 0.5)
+    .attr('stroke-opacity', d => d.isMorpheia ? 1 : d.isMe ? 0.9 : 0.3)
+    .attr('filter', d => d.isMorpheia ? 'url(#glow-morpheia)' : d.isMe ? 'url(#glow-me)' : null)
     .style('cursor', 'pointer');
 
   // Labels
   const label = svg.append('g')
     .selectAll('text').data(networkData.nodes).join('text')
-    .text(d => d.isMe ? `★ ${d.name}` : d.name)
-    .attr('font-size', d => d.isMe ? '13px' : '10px')
-    .attr('font-weight', d => d.isMe ? 'bold' : 'normal')
-    .attr('fill', d => d.isMe ? '#ffd866' : '#7a9ab8')
+    .text(d => d.isMorpheia ? '✦ Morpheia' : d.isMe ? `★ ${d.name}` : d.name)
+    .attr('font-size', d => d.isMorpheia ? '13px' : d.isMe ? '13px' : '10px')
+    .attr('font-weight', d => (d.isMorpheia || d.isMe) ? 'bold' : 'normal')
+    .attr('fill', d => d.isMorpheia ? '#e879f9' : d.isMe ? '#ffd866' : '#7a9ab8')
     .attr('text-anchor', 'middle')
-    .attr('dy', d => (d.isMe ? 14 : nodeRadius(d)) + 14)
+    .attr('dy', d => (d.isMorpheia ? 18 : d.isMe ? 14 : nodeRadius(d)) + 14)
     .style('pointer-events', 'none');
 
   // Click → show popup
@@ -478,8 +498,9 @@ async function loadGraph() {
   // Tooltip on hover
   node.on('mouseenter', (event, d) => {
     tooltip.style.opacity = '1';
+    const prefix = d.isMorpheia ? '✦ ' : d.isMe ? '★ ' : '';
     tooltip.innerHTML =
-      `<div class="tt-name">${d.isMe ? '★ ' : ''}${escapeHtml(d.name)}</div>`
+      `<div class="tt-name">${prefix}${escapeHtml(d.name)}</div>`
       + (d.sampleMessage ? `<div class="tt-msg">「${escapeHtml(d.sampleMessage)}」</div>` : '')
       + '<div class="tt-hint">點擊查看詳情</div>';
   }).on('mousemove', (event) => {
