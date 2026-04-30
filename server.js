@@ -600,19 +600,23 @@ app.post('/api/fragments/collect', async (req, res) => {
     const user = await db.collection('users').findOne({ username });
     if (!user) return res.status(401).json({ error: '使用者不存在 User not found' });
 
+    // Look up creator so we can store their _id for network link building
+    const creator = creatorName ? await db.collection('users').findOne({ username: creatorName }) : null;
+
     const now = new Date();
     await db.collection('user_fragments').insertOne({
       userId: user._id,
       username,
       inscription,
       creatorName: creatorName || '',
+      receivedFrom: creator ? creator._id : null,
       chapter: chapter || 1,
       collectedAt: now,
       sourceType: 'received'
     });
 
     // Update player received count
-    await db.collection('players').updateOne({ username }, { $inc: { totalReceived: 1 }, $set: { updatedAt: now } });
+    await db.collection('players').updateOne({ username }, { $inc: { totalReceived: 1 }, $set: { updatedAt: now } }, { upsert: true });
 
     res.status(201).json({ message: '碎片已收集 Shard collected' });
   } catch (err) {
